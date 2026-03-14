@@ -149,14 +149,17 @@ class SessionView(ctk.CTkFrame):
     def _mark_spoken(self, name: str):
         if self._session is None:
             return
+        # Effacer le surlignage si c'est la personne surlignée qui est cliquée
         if self._highlighted == name:
             self._highlighted = None
         self._session.mark_spoken(name)
         self._refresh()
 
     def _pick_random(self):
+        """Tire au sort parmi les restants et surligne uniquement — ne marque pas."""
         if self._session is None or self._session.is_complete:
             return
+        # Si quelqu'un est déjà surligné, on en tire un nouveau parmi les restants
         chosen = self._session.pick_random()
         if chosen:
             self._highlighted = chosen
@@ -165,10 +168,15 @@ class SessionView(ctk.CTkFrame):
     def _undo(self):
         if self._session is None:
             return
+        # Si quelqu'un est surligné (tiré au sort mais pas encore cliqué),
+        # on efface juste le surlignage sans toucher à la session
+        if self._highlighted is not None:
+            self._highlighted = None
+            self._refresh()
+            return
+        # Sinon on annule le dernier clic (dernier spoken)
         restored = self._session.undo_last()
         if restored:
-            if self._highlighted == restored:
-                self._highlighted = None
             self._refresh()
 
     # ── Layout ────────────────────────────────────────────────

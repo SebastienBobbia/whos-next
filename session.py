@@ -88,8 +88,9 @@ class Session:
 
     def pick_random(self) -> str | None:
         """
-        Tire au sort un participant parmi ceux qui n'ont pas encore parlé
-        et le marque automatiquement comme ayant parlé.
+        Tire au sort un participant parmi ceux qui n'ont pas encore parlé.
+        Ne le marque PAS comme ayant parlé — c'est au caller de le faire
+        explicitement via mark_spoken() quand la personne a effectivement parlé.
 
         Returns:
             Le nom du participant tiré, ou None si tout le monde a parlé.
@@ -97,9 +98,7 @@ class Session:
         remaining = self.remaining
         if not remaining:
             return None
-        chosen = random.choice(remaining)
-        self._spoken.append(chosen)
-        return chosen
+        return random.choice(remaining)
 
     def undo_last(self) -> str | None:
         """
