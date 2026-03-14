@@ -63,14 +63,8 @@ class SessionView(ctk.CTkFrame):
         top.pack(fill="x", padx=6, pady=(4, 2))
         top.pack_propagate(False)
 
-        self._counter_label = ctk.CTkLabel(
-            top,
-            text="",
-            font=ctk.CTkFont(size=11),
-            text_color=_TXT_COUNTER,
-            anchor="w",
-        )
-        self._counter_label.pack(side="left", fill="both", expand=True)
+        # Spacer à gauche pour pousser les boutons à droite
+        ctk.CTkFrame(top, fg_color="transparent").pack(side="left", fill="both", expand=True)
 
         # Boutons à droite : ⇄ 🎲 ↩ ■
         self._end_btn = ctk.CTkButton(
@@ -215,8 +209,8 @@ class SessionView(ctk.CTkFrame):
         spoken_cnt = self._session.spoken_count
         total      = self._session.total
 
-        # Compteur
-        self._counter_label.configure(text=f"{spoken_cnt}/{total} ont parlé")
+        # Compteur (supprimé de l'affichage — on garde juste le titre)
+        pass
 
         # Vider la zone des prénoms
         for child in self._names_outer.winfo_children():
