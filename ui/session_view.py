@@ -2,13 +2,15 @@
 SessionView — Vue live du daily meeting.
 
 Design compact, deux modes :
-  - VERTICAL   : fenêtre collée au bord droit, largeur 7% écran
+  - VERTICAL   : fenêtre collée au bord droit, largeur 7% écran, 100% hauteur
   - HORIZONTAL : fenêtre collée au bord haut, pleine largeur
 
 Seuls les participants qui n'ont pas encore parlé sont affichés.
 Cliquer sur un nom le fait disparaître (= a parlé).
 Tirage aléatoire : surligne le prénom choisi et le retire.
 Undo : réapparaît la dernière personne disparue.
+
+Pas de scroll : les boutons de prénoms occupent tout l'espace disponible.
 """
 
 import customtkinter as ctk
@@ -16,17 +18,22 @@ import customtkinter as ctk
 from session import Session
 
 # ── Constantes de style ───────────────────────────────────────
-_BG             = "#1a1a2e"      # fond global
-_BTN_DEFAULT    = "#2d2d44"      # bouton prénom normal
-_BTN_HOVER      = "#3d3d5c"      # survol
-_BTN_HIGHLIGHT  = "#1a5c2a"      # surligné après tirage (fond)
-_TXT_HIGHLIGHT  = "#4ADE80"      # texte surligné
-_TXT_NORMAL     = "#e0e0e0"      # texte normal
-_TXT_COUNTER    = "#9CA3AF"      # compteur grisé
-_BTN_ACTION     = "#374151"      # boutons d'action
+_BG             = "#1a1a2e"
+_BTN_DEFAULT    = "#2d2d44"
+_BTN_HOVER      = "#3d3d5c"
+_BTN_HIGHLIGHT  = "#1a5c2a"
+_TXT_HIGHLIGHT  = "#4ADE80"
+_TXT_NORMAL     = "#e0e0e0"
+_TXT_COUNTER    = "#9CA3AF"
+_BTN_ACTION     = "#374151"
 _BTN_ACTION_HOV = "#4B5563"
 _BTN_END        = "#7f1d1d"
 _BTN_END_HOV    = "#DC2626"
+
+# Hauteur réservée à la barre top + barre actions (en px)
+_TOP_BAR_H    = 36
+_ACTION_BAR_H = 44
+_RESERVED_H   = _TOP_BAR_H + _ACTION_BAR_H + 20   # marges incluses
 
 
 class SessionView(ctk.CTkFrame):
@@ -36,18 +43,12 @@ class SessionView(ctk.CTkFrame):
     HORIZONTAL = "horizontal"
 
     def __init__(self, parent, on_end_session, get_window):
-        """
-        Args:
-            parent        : widget parent
-            on_end_session: callback appelé quand l'utilisateur termine le daily
-            get_window    : callable retournant la CTk root (pour repositionner)
-        """
         super().__init__(parent, fg_color=_BG)
         self._session: Session | None = None
         self._on_end_session = on_end_session
         self._get_window = get_window
         self._layout = self.VERTICAL
-        self._highlighted: str | None = None   # dernier tiré au sort (surligné)
+        self._highlighted: str | None = None
 
         self._build_ui()
 
@@ -55,8 +56,9 @@ class SessionView(ctk.CTkFrame):
 
     def _build_ui(self):
         # Barre supérieure : compteur + bouton layout
-        top = ctk.CTkFrame(self, fg_color="transparent")
-        top.pack(fill="x", padx=6, pady=(6, 2))
+        top = ctk.CTkFrame(self, fg_color="transparent", height=_TOP_BAR_H)
+        top.pack(fill="x", padx=6, pady=(4, 2))
+        top.pack_propagate(False)
 
         self._counter_label = ctk.CTkLabel(
             top,
@@ -65,7 +67,7 @@ class SessionView(ctk.CTkFrame):
             text_color=_TXT_COUNTER,
             anchor="w",
         )
-        self._counter_label.pack(side="left", fill="x", expand=True)
+        self._counter_label.pack(side="left", fill="both", expand=True)
 
         self._layout_btn = ctk.CTkButton(
             top,
@@ -77,21 +79,19 @@ class SessionView(ctk.CTkFrame):
             hover_color=_BTN_ACTION_HOV,
             command=self._toggle_layout,
         )
-        self._layout_btn.pack(side="right")
+        self._layout_btn.pack(side="right", pady=4)
 
-        # Zone des prénoms (scrollable, s'adapte au layout)
+        # Zone des prénoms — frame simple (pas de scroll)
+        # On utilise pack() avec fill+expand pour distribuer la hauteur dynamiquement
         self._names_outer = ctk.CTkFrame(self, fg_color="transparent")
         self._names_outer.pack(fill="both", expand=True, padx=4, pady=2)
+        # Recalcule les hauteurs de boutons à chaque redimensionnement de la zone
+        self._names_outer.bind("<Configure>", self._on_names_resize)
 
-        # Conteneur scrollable des prénoms
-        self._names_scroll = ctk.CTkScrollableFrame(
-            self._names_outer, fg_color="transparent", scrollbar_button_color=_BTN_ACTION
-        )
-        self._names_scroll.pack(fill="both", expand=True)
-
-        # Barre d'actions en bas
-        actions = ctk.CTkFrame(self, fg_color="transparent")
+        # Barre d'actions en bas (hauteur fixe)
+        actions = ctk.CTkFrame(self, fg_color="transparent", height=_ACTION_BAR_H)
         actions.pack(fill="x", padx=6, pady=(2, 6))
+        actions.pack_propagate(False)
 
         self._random_btn = ctk.CTkButton(
             actions,
@@ -103,7 +103,7 @@ class SessionView(ctk.CTkFrame):
             hover_color="#1D4ED8",
             command=self._pick_random,
         )
-        self._random_btn.pack(side="left", padx=(0, 4))
+        self._random_btn.pack(side="left", padx=(0, 4), pady=4)
 
         self._undo_btn = ctk.CTkButton(
             actions,
@@ -115,7 +115,7 @@ class SessionView(ctk.CTkFrame):
             hover_color=_BTN_ACTION_HOV,
             command=self._undo,
         )
-        self._undo_btn.pack(side="left", padx=(0, 4))
+        self._undo_btn.pack(side="left", padx=(0, 4), pady=4)
 
         self._end_btn = ctk.CTkButton(
             actions,
@@ -127,7 +127,12 @@ class SessionView(ctk.CTkFrame):
             hover_color=_BTN_END_HOV,
             command=self._on_end_session,
         )
-        self._end_btn.pack(side="right")
+        self._end_btn.pack(side="right", pady=4)
+
+    def _on_names_resize(self, event):
+        """Recalcule les hauteurs de boutons quand la zone change de taille."""
+        if self._session is not None and not self._session.is_complete:
+            self._refresh()
 
     # ── API publique ──────────────────────────────────────────
 
@@ -136,12 +141,12 @@ class SessionView(ctk.CTkFrame):
         self._session = Session(attendees)
         self._highlighted = None
         self._apply_layout()
-        self._refresh()
+        # Attendre que la fenêtre soit dessinée avant de calculer les hauteurs
+        self._get_window().after(50, self._refresh)
 
     # ── Actions utilisateur ───────────────────────────────────
 
     def _mark_spoken(self, name: str):
-        """Clic sur un prénom → il a parlé, disparaît."""
         if self._session is None:
             return
         if self._highlighted == name:
@@ -150,7 +155,6 @@ class SessionView(ctk.CTkFrame):
         self._refresh()
 
     def _pick_random(self):
-        """Tire au sort parmi les restants, surligne + retire."""
         if self._session is None or self._session.is_complete:
             return
         chosen = self._session.pick_random()
@@ -159,12 +163,10 @@ class SessionView(ctk.CTkFrame):
             self._refresh()
 
     def _undo(self):
-        """Annule le dernier événement : réapparaît le dernier nom disparu."""
         if self._session is None:
             return
         restored = self._session.undo_last()
         if restored:
-            # Si le nom restauré était le surligné, on efface le surlignage
             if self._highlighted == restored:
                 self._highlighted = None
             self._refresh()
@@ -172,13 +174,12 @@ class SessionView(ctk.CTkFrame):
     # ── Layout ────────────────────────────────────────────────
 
     def _toggle_layout(self):
-        """Bascule entre mode vertical et horizontal."""
         if self._layout == self.VERTICAL:
             self._layout = self.HORIZONTAL
         else:
             self._layout = self.VERTICAL
         self._apply_layout()
-        self._refresh()
+        self._get_window().after(50, self._refresh)
 
     def _apply_layout(self):
         """Repositionne et redimensionne la fenêtre selon le layout."""
@@ -188,15 +189,11 @@ class SessionView(ctk.CTkFrame):
 
         if self._layout == self.VERTICAL:
             w = max(120, int(sw * 0.07))
-            h = int(sh * 0.80)
+            h = sh          # 100% de la hauteur
             x = sw - w
-            y = int(sh * 0.10)
+            y = 0
             win.geometry(f"{w}x{h}+{x}+{y}")
-
-            # Réorganiser le scroll en vertical
-            self._names_scroll.configure(orientation="vertical")   # type: ignore[call-arg]
-
-        else:  # HORIZONTAL
+        else:               # HORIZONTAL
             w = sw
             h = 130
             x = 0
@@ -206,30 +203,33 @@ class SessionView(ctk.CTkFrame):
     # ── Rendu ─────────────────────────────────────────────────
 
     def _refresh(self):
-        """Met à jour l'affichage."""
+        """Met à jour l'affichage, calcule la hauteur dynamique des boutons."""
         if self._session is None:
             return
 
-        remaining = self._session.remaining
-        spoken_count = self._session.spoken_count
-        total = self._session.total
+        remaining  = self._session.remaining
+        spoken_cnt = self._session.spoken_count
+        total      = self._session.total
 
         # Compteur
-        self._counter_label.configure(text=f"{spoken_count}/{total} ont parlé")
+        self._counter_label.configure(text=f"{spoken_cnt}/{total} ont parlé")
 
         # Vider la zone des prénoms
-        for w in self._names_scroll.winfo_children():
-            w.destroy()
+        for child in self._names_outer.winfo_children():
+            child.destroy()
+
+        # État boutons
+        self._undo_btn.configure(state="normal" if spoken_cnt > 0 else "disabled")
 
         if self._session.is_complete:
+            self._random_btn.configure(state="disabled")
             ctk.CTkLabel(
-                self._names_scroll,
+                self._names_outer,
                 text="Tout le monde\na parlé !",
-                font=ctk.CTkFont(size=12, weight="bold"),
+                font=ctk.CTkFont(size=13, weight="bold"),
                 text_color=_TXT_HIGHLIGHT,
                 justify="center",
-            ).pack(pady=10, padx=4)
-            self._random_btn.configure(state="disabled")
+            ).pack(expand=True)
             return
 
         self._random_btn.configure(state="normal")
@@ -239,46 +239,65 @@ class SessionView(ctk.CTkFrame):
         else:
             self._render_horizontal(remaining)
 
-        # Undo disponible seulement si quelqu'un a parlé
-        self._undo_btn.configure(
-            state="normal" if spoken_count > 0 else "disabled"
-        )
-
     def _render_vertical(self, remaining: list[str]):
-        """Affiche les prénoms en colonne."""
+        """
+        Affiche les prénoms en colonne.
+        La hauteur de chaque bouton est calculée pour remplir tout l'espace
+        disponible sans laisser de vide ni nécessiter de scroll.
+        """
+        n = len(remaining)
+        if n == 0:
+            return
+
+        # Récupérer la hauteur réelle disponible dans _names_outer
+        self.update_idletasks()
+        available_h = self._names_outer.winfo_height()
+
+        # Si la fenêtre n'est pas encore rendue, fallback
+        if available_h < 10:
+            available_h = self._get_window().winfo_height() - _RESERVED_H
+
+        pad_total  = 4 * n          # pady=2 haut + bas par bouton
+        btn_h      = max(24, (available_h - pad_total) // n)
+
+        # Police adaptée à la taille du bouton
+        font_size  = max(9, min(16, btn_h // 2))
+
         for name in remaining:
             is_hl = (name == self._highlighted)
             btn = ctk.CTkButton(
-                self._names_scroll,
+                self._names_outer,
                 text=name,
-                height=32,
-                font=ctk.CTkFont(size=13, weight="bold" if is_hl else "normal"),
+                height=btn_h,
+                font=ctk.CTkFont(
+                    size=font_size,
+                    weight="bold" if is_hl else "normal",
+                ),
                 fg_color=_BTN_HIGHLIGHT if is_hl else _BTN_DEFAULT,
                 hover_color=_BTN_HOVER,
                 text_color=_TXT_HIGHLIGHT if is_hl else _TXT_NORMAL,
                 anchor="center",
                 corner_radius=6,
-                command=lambda n=name: self._mark_spoken(n),
+                command=lambda nm=name: self._mark_spoken(nm),
             )
             btn.pack(fill="x", pady=2, padx=2)
 
     def _render_horizontal(self, remaining: list[str]):
-        """Affiche les prénoms en ligne (wrap manuel par frame)."""
-        # On utilise un frame avec wrapping via pack en mode left
-        wrap_frame = ctk.CTkFrame(self._names_scroll, fg_color="transparent")
-        wrap_frame.pack(fill="both", expand=True)
+        """Affiche les prénoms en ligne côte à côte."""
+        wrap = ctk.CTkFrame(self._names_outer, fg_color="transparent")
+        wrap.pack(fill="both", expand=True)
 
         for name in remaining:
             is_hl = (name == self._highlighted)
             btn = ctk.CTkButton(
-                wrap_frame,
+                wrap,
                 text=name,
-                height=30,
+                height=40,
                 font=ctk.CTkFont(size=12, weight="bold" if is_hl else "normal"),
                 fg_color=_BTN_HIGHLIGHT if is_hl else _BTN_DEFAULT,
                 hover_color=_BTN_HOVER,
                 text_color=_TXT_HIGHLIGHT if is_hl else _TXT_NORMAL,
                 corner_radius=6,
-                command=lambda n=name: self._mark_spoken(n),
+                command=lambda nm=name: self._mark_spoken(nm),
             )
             btn.pack(side="left", padx=3, pady=3)
