@@ -30,6 +30,10 @@ _BTN_ACTION_HOV = "#4B5563"
 _BTN_END        = "#7f1d1d"
 _BTN_END_HOV    = "#DC2626"
 
+# Célébration : texte jaune sur fond noir
+_CELEBRATION_BG  = "#000000"
+_CELEBRATION_TXT = "#FFD600"
+
 # Hauteur réservée à la barre top + barre actions (en px)
 _TOP_BAR_H    = 36
 _ACTION_BAR_H = 44
@@ -149,9 +153,8 @@ class SessionView(ctk.CTkFrame):
     def _mark_spoken(self, name: str):
         if self._session is None:
             return
-        # Effacer le surlignage si c'est la personne surlignée qui est cliquée
-        if self._highlighted == name:
-            self._highlighted = None
+        # Effacer le surlignage (quelle que soit la personne cliquée)
+        self._highlighted = None
         self._session.mark_spoken(name)
         self._refresh()
 
@@ -268,8 +271,8 @@ class SessionView(ctk.CTkFrame):
         pad_total  = 4 * n          # pady=2 haut + bas par bouton
         btn_h      = max(24, (available_h - pad_total) // n)
 
-        # Police adaptée à la taille du bouton
-        font_size  = max(9, min(16, btn_h // 2))
+        # Police adaptée à la taille du bouton (pas de plafond artificiel)
+        font_size  = max(9, btn_h // 2)
 
         for name in remaining:
             is_hl = (name == self._highlighted)
@@ -291,7 +294,33 @@ class SessionView(ctk.CTkFrame):
             btn.pack(fill="x", pady=2, padx=2)
 
     def _render_horizontal(self, remaining: list[str]):
-        """Affiche les prénoms en ligne côte à côte."""
+        """
+        Affiche les prénoms en ligne côte à côte.
+        La largeur de chaque bouton est calculée pour remplir tout l'espace
+        disponible sans scroll. La hauteur remplit la zone disponible.
+        """
+        n = len(remaining)
+        if n == 0:
+            return
+
+        self.update_idletasks()
+        available_w = self._names_outer.winfo_width()
+        available_h = self._names_outer.winfo_height()
+
+        if available_w < 10:
+            available_w = self._get_window().winfo_width()
+        if available_h < 10:
+            available_h = self._get_window().winfo_height() - _RESERVED_H
+
+        pad_total_w = 6 * n          # padx=3 gauche + droite par bouton
+        btn_w = max(40, (available_w - pad_total_w) // n)
+
+        pad_total_h = 6               # pady=3 haut + bas
+        btn_h = max(24, available_h - pad_total_h)
+
+        # Police adaptée à la taille du bouton (pas de plafond artificiel)
+        font_size = max(9, btn_h // 2)
+
         wrap = ctk.CTkFrame(self._names_outer, fg_color="transparent")
         wrap.pack(fill="both", expand=True)
 
@@ -300,8 +329,9 @@ class SessionView(ctk.CTkFrame):
             btn = ctk.CTkButton(
                 wrap,
                 text=name,
-                height=40,
-                font=ctk.CTkFont(size=12, weight="bold" if is_hl else "normal"),
+                width=btn_w,
+                height=btn_h,
+                font=ctk.CTkFont(size=font_size, weight="bold" if is_hl else "normal"),
                 fg_color=_BTN_HIGHLIGHT if is_hl else _BTN_DEFAULT,
                 hover_color=_BTN_HOVER,
                 text_color=_TXT_HIGHLIGHT if is_hl else _TXT_NORMAL,
