@@ -85,16 +85,9 @@ class SessionView(ctk.CTkFrame):
         )
         self._layout_btn.pack(side="right", pady=4)
 
-        # Zone des prénoms — frame simple (pas de scroll)
-        # On utilise pack() avec fill+expand pour distribuer la hauteur dynamiquement
-        self._names_outer = ctk.CTkFrame(self, fg_color="transparent")
-        self._names_outer.pack(fill="both", expand=True, padx=4, pady=2)
-        # Recalcule les hauteurs de boutons à chaque redimensionnement de la zone
-        self._names_outer.bind("<Configure>", self._on_names_resize)
-
-        # Barre d'actions en bas (hauteur fixe)
+        # Barre d'actions (sous le compteur, au-dessus des prénoms)
         actions = ctk.CTkFrame(self, fg_color="transparent", height=_ACTION_BAR_H)
-        actions.pack(fill="x", padx=6, pady=(2, 6))
+        actions.pack(fill="x", padx=6, pady=(0, 2))
         actions.pack_propagate(False)
 
         self._random_btn = ctk.CTkButton(
@@ -132,6 +125,11 @@ class SessionView(ctk.CTkFrame):
             command=self._on_end_session,
         )
         self._end_btn.pack(side="right", pady=4)
+
+        # Zone des prénoms — prend tout l'espace restant
+        self._names_outer = ctk.CTkFrame(self, fg_color="transparent")
+        self._names_outer.pack(fill="both", expand=True, padx=4, pady=(0, 4))
+        self._names_outer.bind("<Configure>", self._on_names_resize)
 
     def _on_names_resize(self, event):
         """Recalcule les hauteurs de boutons quand la zone change de taille."""
@@ -280,10 +278,10 @@ class SessionView(ctk.CTkFrame):
 
         _pulse()
 
-        # Auto-close après 3 secondes
+        # Auto-fermeture complète de l'application après 3 secondes
         def _close():
             _state["running"] = False
-            self._on_end_session()
+            self._get_window().destroy()
 
         win.after(3000, _close)
 
@@ -308,8 +306,14 @@ class SessionView(ctk.CTkFrame):
         pad_total  = 4 * n          # pady=2 haut + bas par bouton
         btn_h      = max(24, (available_h - pad_total) // n)
 
-        # Police adaptée à la taille du bouton (pas de plafond artificiel)
-        font_size  = max(9, btn_h // 2)
+        # Largeur réelle disponible pour les boutons
+        self.update_idletasks()
+        available_w = self._names_outer.winfo_width()
+        if available_w < 10:
+            available_w = self._get_window().winfo_width()
+
+        # Police : limitée par la hauteur ET la largeur du bouton
+        font_size  = max(9, min(btn_h // 2, available_w // 6))
 
         for name in remaining:
             is_hl = (name == self._highlighted)
