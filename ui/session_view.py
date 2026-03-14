@@ -34,10 +34,9 @@ _BTN_END_HOV    = "#DC2626"
 _CELEBRATION_BG  = "#000000"
 _CELEBRATION_TXT = "#FFD600"
 
-# Hauteur réservée à la barre top + barre actions (en px)
-_TOP_BAR_H    = 36
-_ACTION_BAR_H = 44
-_RESERVED_H   = _TOP_BAR_H + _ACTION_BAR_H + 20   # marges incluses
+# Hauteur de la barre unique (compteur + tous les boutons)
+_TOP_BAR_H  = 40
+_RESERVED_H = _TOP_BAR_H + 16   # marges incluses
 
 
 class SessionView(ctk.CTkFrame):
@@ -59,7 +58,7 @@ class SessionView(ctk.CTkFrame):
     # ── Construction UI ───────────────────────────────────────
 
     def _build_ui(self):
-        # Barre supérieure : compteur + bouton layout
+        # Barre unique : compteur + tous les boutons sur une seule ligne
         top = ctk.CTkFrame(self, fg_color="transparent", height=_TOP_BAR_H)
         top.pack(fill="x", padx=6, pady=(4, 2))
         top.pack_propagate(False)
@@ -73,58 +72,54 @@ class SessionView(ctk.CTkFrame):
         )
         self._counter_label.pack(side="left", fill="both", expand=True)
 
+        # Boutons à droite : ⇄ 🎲 ↩ ■
+        self._end_btn = ctk.CTkButton(
+            top,
+            text="■",
+            width=30,
+            height=28,
+            font=ctk.CTkFont(size=13),
+            fg_color=_BTN_END,
+            hover_color=_BTN_END_HOV,
+            command=self._on_end_session,
+        )
+        self._end_btn.pack(side="right", padx=(2, 0))
+
+        self._undo_btn = ctk.CTkButton(
+            top,
+            text="↩",
+            width=30,
+            height=28,
+            font=ctk.CTkFont(size=14),
+            fg_color=_BTN_ACTION,
+            hover_color=_BTN_ACTION_HOV,
+            command=self._undo,
+        )
+        self._undo_btn.pack(side="right", padx=2)
+
+        self._random_btn = ctk.CTkButton(
+            top,
+            text="🎲",
+            width=30,
+            height=28,
+            font=ctk.CTkFont(size=14),
+            fg_color=_BTN_ACTION,
+            hover_color="#1D4ED8",
+            command=self._pick_random,
+        )
+        self._random_btn.pack(side="right", padx=2)
+
         self._layout_btn = ctk.CTkButton(
             top,
             text="⇄",
-            width=28,
-            height=22,
+            width=30,
+            height=28,
             font=ctk.CTkFont(size=13),
             fg_color=_BTN_ACTION,
             hover_color=_BTN_ACTION_HOV,
             command=self._toggle_layout,
         )
-        self._layout_btn.pack(side="right", pady=4)
-
-        # Barre d'actions (sous le compteur, au-dessus des prénoms)
-        actions = ctk.CTkFrame(self, fg_color="transparent", height=_ACTION_BAR_H)
-        actions.pack(fill="x", padx=6, pady=(0, 2))
-        actions.pack_propagate(False)
-
-        self._random_btn = ctk.CTkButton(
-            actions,
-            text="🎲",
-            width=36,
-            height=30,
-            font=ctk.CTkFont(size=16),
-            fg_color=_BTN_ACTION,
-            hover_color="#1D4ED8",
-            command=self._pick_random,
-        )
-        self._random_btn.pack(side="left", padx=(0, 4), pady=4)
-
-        self._undo_btn = ctk.CTkButton(
-            actions,
-            text="↩",
-            width=36,
-            height=30,
-            font=ctk.CTkFont(size=16),
-            fg_color=_BTN_ACTION,
-            hover_color=_BTN_ACTION_HOV,
-            command=self._undo,
-        )
-        self._undo_btn.pack(side="left", padx=(0, 4), pady=4)
-
-        self._end_btn = ctk.CTkButton(
-            actions,
-            text="■",
-            width=36,
-            height=30,
-            font=ctk.CTkFont(size=14),
-            fg_color=_BTN_END,
-            hover_color=_BTN_END_HOV,
-            command=self._on_end_session,
-        )
-        self._end_btn.pack(side="right", pady=4)
+        self._layout_btn.pack(side="right", padx=(0, 6))
 
         # Zone des prénoms — prend tout l'espace restant
         self._names_outer = ctk.CTkFrame(self, fg_color="transparent")
@@ -246,7 +241,7 @@ class SessionView(ctk.CTkFrame):
     def _show_celebration(self):
         """
         Affiche une animation de célébration (texte jaune sur fond noir)
-        puis ferme automatiquement la session après ~3 secondes.
+        puis ferme automatiquement l'application après ~3 secondes.
         """
         win = self._get_window()
 
@@ -254,10 +249,23 @@ class SessionView(ctk.CTkFrame):
         self.configure(fg_color=_CELEBRATION_BG)
         self._names_outer.configure(fg_color=_CELEBRATION_BG)
 
+        # Taille de police dynamique selon la zone disponible
+        self.update_idletasks()
+        available_w = self._names_outer.winfo_width()
+        available_h = self._names_outer.winfo_height()
+        if available_w < 10:
+            available_w = win.winfo_width()
+        if available_h < 10:
+            available_h = win.winfo_height() - _RESERVED_H
+
+        # Le texte fait ~16 caractères sur 2 lignes — on borne la police
+        # pour qu'elle rentre dans la largeur ET la hauteur disponibles
+        font_size = max(10, min(available_h // 4, available_w // 9))
+
         label = ctk.CTkLabel(
             self._names_outer,
             text="Tout le monde\na parlé ! 🎉",
-            font=ctk.CTkFont(size=32, weight="bold"),
+            font=ctk.CTkFont(size=font_size, weight="bold"),
             text_color=_CELEBRATION_TXT,
             fg_color=_CELEBRATION_BG,
             justify="center",
