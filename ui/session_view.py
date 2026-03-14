@@ -234,13 +234,8 @@ class SessionView(ctk.CTkFrame):
 
         if self._session.is_complete:
             self._random_btn.configure(state="disabled")
-            ctk.CTkLabel(
-                self._names_outer,
-                text="Tout le monde\na parlé !",
-                font=ctk.CTkFont(size=13, weight="bold"),
-                text_color=_TXT_HIGHLIGHT,
-                justify="center",
-            ).pack(expand=True)
+            self._undo_btn.configure(state="disabled")
+            self._show_celebration()
             return
 
         self._random_btn.configure(state="normal")
@@ -249,6 +244,48 @@ class SessionView(ctk.CTkFrame):
             self._render_vertical(remaining)
         else:
             self._render_horizontal(remaining)
+
+    def _show_celebration(self):
+        """
+        Affiche une animation de célébration (texte jaune sur fond noir)
+        puis ferme automatiquement la session après ~3 secondes.
+        """
+        win = self._get_window()
+
+        # Fond noir sur toute la fenêtre
+        self.configure(fg_color=_CELEBRATION_BG)
+        self._names_outer.configure(fg_color=_CELEBRATION_BG)
+
+        label = ctk.CTkLabel(
+            self._names_outer,
+            text="Tout le monde\na parlé ! 🎉",
+            font=ctk.CTkFont(size=32, weight="bold"),
+            text_color=_CELEBRATION_TXT,
+            fg_color=_CELEBRATION_BG,
+            justify="center",
+        )
+        label.pack(expand=True)
+
+        # Animation de pulse : alterne entre jaune vif et jaune foncé
+        _colors = [_CELEBRATION_TXT, "#997F00"]
+        _state  = {"step": 0, "running": True}
+
+        def _pulse():
+            if not _state["running"]:
+                return
+            color = _colors[_state["step"] % 2]
+            label.configure(text_color=color)
+            _state["step"] += 1
+            win.after(400, _pulse)
+
+        _pulse()
+
+        # Auto-close après 3 secondes
+        def _close():
+            _state["running"] = False
+            self._on_end_session()
+
+        win.after(3000, _close)
 
     def _render_vertical(self, remaining: list[str]):
         """
