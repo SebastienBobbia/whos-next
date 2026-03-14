@@ -34,9 +34,9 @@ _BTN_END_HOV    = "#DC2626"
 _CELEBRATION_BG  = "#000000"
 _CELEBRATION_TXT = "#FFD600"
 
-# Hauteur de la barre unique (compteur + tous les boutons)
-_TOP_BAR_H  = 40
-_RESERVED_H = _TOP_BAR_H + 16   # marges incluses
+# Hauteur de la barre unique (tous les boutons)
+_TOP_BAR_H  = 32
+_RESERVED_H = _TOP_BAR_H + 10   # marges incluses
 
 
 class SessionView(ctk.CTkFrame):
@@ -60,7 +60,7 @@ class SessionView(ctk.CTkFrame):
     def _build_ui(self):
         # Barre unique : compteur + tous les boutons sur une seule ligne
         top = ctk.CTkFrame(self, fg_color="transparent", height=_TOP_BAR_H)
-        top.pack(fill="x", padx=6, pady=(4, 2))
+        top.pack(fill="x", padx=4, pady=(2, 1))
         top.pack_propagate(False)
 
         # Spacer à gauche pour pousser les boutons à droite
@@ -70,54 +70,54 @@ class SessionView(ctk.CTkFrame):
         self._end_btn = ctk.CTkButton(
             top,
             text="■",
-            width=30,
-            height=28,
-            font=ctk.CTkFont(size=13),
+            width=26,
+            height=24,
+            font=ctk.CTkFont(size=11),
             fg_color=_BTN_END,
             hover_color=_BTN_END_HOV,
             command=self._on_end_session,
         )
-        self._end_btn.pack(side="right", padx=(2, 0))
+        self._end_btn.pack(side="right", padx=(1, 0))
 
         self._undo_btn = ctk.CTkButton(
             top,
             text="↩",
-            width=30,
-            height=28,
-            font=ctk.CTkFont(size=14),
+            width=26,
+            height=24,
+            font=ctk.CTkFont(size=12),
             fg_color=_BTN_ACTION,
             hover_color=_BTN_ACTION_HOV,
             command=self._undo,
         )
-        self._undo_btn.pack(side="right", padx=2)
+        self._undo_btn.pack(side="right", padx=1)
 
         self._random_btn = ctk.CTkButton(
             top,
             text="🎲",
-            width=30,
-            height=28,
-            font=ctk.CTkFont(size=14),
+            width=26,
+            height=24,
+            font=ctk.CTkFont(size=12),
             fg_color=_BTN_ACTION,
             hover_color="#1D4ED8",
             command=self._pick_random,
         )
-        self._random_btn.pack(side="right", padx=2)
+        self._random_btn.pack(side="right", padx=1)
 
         self._layout_btn = ctk.CTkButton(
             top,
             text="⇄",
-            width=30,
-            height=28,
-            font=ctk.CTkFont(size=13),
+            width=26,
+            height=24,
+            font=ctk.CTkFont(size=11),
             fg_color=_BTN_ACTION,
             hover_color=_BTN_ACTION_HOV,
             command=self._toggle_layout,
         )
-        self._layout_btn.pack(side="right", padx=(0, 6))
+        self._layout_btn.pack(side="right", padx=(0, 2))
 
         # Zone des prénoms — prend tout l'espace restant
         self._names_outer = ctk.CTkFrame(self, fg_color="transparent")
-        self._names_outer.pack(fill="both", expand=True, padx=4, pady=(0, 4))
+        self._names_outer.pack(fill="both", expand=True, padx=2, pady=(0, 2))
         self._names_outer.bind("<Configure>", self._on_names_resize)
 
     def _on_names_resize(self, event):
@@ -193,7 +193,7 @@ class SessionView(ctk.CTkFrame):
             win.geometry(f"{w}x{h}+{x}+{y}")
         else:               # HORIZONTAL
             w = sw
-            h = 130
+            h = max(60, int(sh * 0.05))
             x = 0
             y = 0
             win.geometry(f"{w}x{h}+{x}+{y}")
@@ -276,16 +276,16 @@ class SessionView(ctk.CTkFrame):
             color = _colors[_state["step"] % 2]
             label.configure(text_color=color)
             _state["step"] += 1
-            win.after(400, _pulse)
+            win.after(250, _pulse)
 
         _pulse()
 
-        # Auto-fermeture complète de l'application après 3 secondes
+        # Auto-fermeture complète de l'application après 1 seconde
         def _close():
             _state["running"] = False
             self._get_window().destroy()
 
-        win.after(3000, _close)
+        win.after(1000, _close)
 
     def _render_vertical(self, remaining: list[str]):
         """
