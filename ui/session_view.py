@@ -1,243 +1,284 @@
 """
 SessionView — Vue live du daily meeting.
 
-Affiche en temps réel qui a parlé et qui reste,
-avec tirage aléatoire et marquage manuel.
+Design compact, deux modes :
+  - VERTICAL   : fenêtre collée au bord droit, largeur 7% écran
+  - HORIZONTAL : fenêtre collée au bord haut, pleine largeur
+
+Seuls les participants qui n'ont pas encore parlé sont affichés.
+Cliquer sur un nom le fait disparaître (= a parlé).
+Tirage aléatoire : surligne le prénom choisi et le retire.
+Undo : réapparaît la dernière personne disparue.
 """
 
 import customtkinter as ctk
 
 from session import Session
 
+# ── Constantes de style ───────────────────────────────────────
+_BG             = "#1a1a2e"      # fond global
+_BTN_DEFAULT    = "#2d2d44"      # bouton prénom normal
+_BTN_HOVER      = "#3d3d5c"      # survol
+_BTN_HIGHLIGHT  = "#1a5c2a"      # surligné après tirage (fond)
+_TXT_HIGHLIGHT  = "#4ADE80"      # texte surligné
+_TXT_NORMAL     = "#e0e0e0"      # texte normal
+_TXT_COUNTER    = "#9CA3AF"      # compteur grisé
+_BTN_ACTION     = "#374151"      # boutons d'action
+_BTN_ACTION_HOV = "#4B5563"
+_BTN_END        = "#7f1d1d"
+_BTN_END_HOV    = "#DC2626"
+
 
 class SessionView(ctk.CTkFrame):
     """Vue principale pendant le déroulement du daily meeting."""
 
-    def __init__(self, parent, on_end_session):
-        super().__init__(parent)
+    VERTICAL   = "vertical"
+    HORIZONTAL = "horizontal"
+
+    def __init__(self, parent, on_end_session, get_window):
+        """
+        Args:
+            parent        : widget parent
+            on_end_session: callback appelé quand l'utilisateur termine le daily
+            get_window    : callable retournant la CTk root (pour repositionner)
+        """
+        super().__init__(parent, fg_color=_BG)
         self._session: Session | None = None
         self._on_end_session = on_end_session
-        self._last_picked: str | None = None
+        self._get_window = get_window
+        self._layout = self.VERTICAL
+        self._highlighted: str | None = None   # dernier tiré au sort (surligné)
 
         self._build_ui()
 
+    # ── Construction UI ───────────────────────────────────────
+
     def _build_ui(self):
-        """Construit l'interface de la vue."""
-        # Titre
-        self._title = ctk.CTkLabel(
-            self,
-            text="Daily en cours",
-            font=ctk.CTkFont(size=20, weight="bold"),
-        )
-        self._title.pack(pady=(15, 5))
+        # Barre supérieure : compteur + bouton layout
+        top = ctk.CTkFrame(self, fg_color="transparent")
+        top.pack(fill="x", padx=6, pady=(6, 2))
 
-        # Barre de progression texte
-        self._progress_label = ctk.CTkLabel(
-            self, text="", font=ctk.CTkFont(size=14, weight="bold")
-        )
-        self._progress_label.pack(pady=(0, 5))
-
-        # Barre de progression visuelle
-        self._progress_bar = ctk.CTkProgressBar(self)
-        self._progress_bar.pack(fill="x", padx=20, pady=(0, 10))
-        self._progress_bar.set(0)
-
-        # Annonce du tirage aléatoire
-        self._announce_frame = ctk.CTkFrame(self, fg_color="#1a5c2a", corner_radius=10)
-        self._announce_frame.pack(fill="x", padx=20, pady=(0, 10))
-
-        self._announce_label = ctk.CTkLabel(
-            self._announce_frame,
+        self._counter_label = ctk.CTkLabel(
+            top,
             text="",
-            font=ctk.CTkFont(size=18, weight="bold"),
-            text_color="#4ADE80",
+            font=ctk.CTkFont(size=11),
+            text_color=_TXT_COUNTER,
+            anchor="w",
         )
-        self._announce_label.pack(pady=10, padx=10)
-        self._announce_frame.pack_forget()  # caché par défaut
+        self._counter_label.pack(side="left", fill="x", expand=True)
 
-        # Zone principale : deux colonnes
-        main_frame = ctk.CTkFrame(self, fg_color="transparent")
-        main_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
-        main_frame.columnconfigure(0, weight=1)
-        main_frame.columnconfigure(1, weight=1)
-        main_frame.rowconfigure(0, weight=1)
-
-        # Colonne gauche : n'ont pas encore parlé
-        self._remaining_frame = ctk.CTkScrollableFrame(
-            main_frame, label_text="N'ont pas encore parlé"
+        self._layout_btn = ctk.CTkButton(
+            top,
+            text="⇄",
+            width=28,
+            height=22,
+            font=ctk.CTkFont(size=13),
+            fg_color=_BTN_ACTION,
+            hover_color=_BTN_ACTION_HOV,
+            command=self._toggle_layout,
         )
-        self._remaining_frame.grid(row=0, column=0, sticky="nsew", padx=(5, 3))
+        self._layout_btn.pack(side="right")
 
-        # Colonne droite : ont parlé
-        self._spoken_frame = ctk.CTkScrollableFrame(
-            main_frame, label_text="Ont parlé"
+        # Zone des prénoms (scrollable, s'adapte au layout)
+        self._names_outer = ctk.CTkFrame(self, fg_color="transparent")
+        self._names_outer.pack(fill="both", expand=True, padx=4, pady=2)
+
+        # Conteneur scrollable des prénoms
+        self._names_scroll = ctk.CTkScrollableFrame(
+            self._names_outer, fg_color="transparent", scrollbar_button_color=_BTN_ACTION
         )
-        self._spoken_frame.grid(row=0, column=1, sticky="nsew", padx=(3, 5))
+        self._names_scroll.pack(fill="both", expand=True)
 
-        # Boutons d'action
-        action_frame = ctk.CTkFrame(self, fg_color="transparent")
-        action_frame.pack(fill="x", padx=15, pady=(5, 10))
+        # Barre d'actions en bas
+        actions = ctk.CTkFrame(self, fg_color="transparent")
+        actions.pack(fill="x", padx=6, pady=(2, 6))
 
         self._random_btn = ctk.CTkButton(
-            action_frame,
-            text="Tirer au sort",
-            height=40,
-            font=ctk.CTkFont(size=14, weight="bold"),
-            fg_color="#2563EB",
+            actions,
+            text="🎲",
+            width=36,
+            height=30,
+            font=ctk.CTkFont(size=16),
+            fg_color=_BTN_ACTION,
             hover_color="#1D4ED8",
             command=self._pick_random,
         )
-        self._random_btn.pack(fill="x", pady=(0, 8))
+        self._random_btn.pack(side="left", padx=(0, 4))
 
-        bottom_frame = ctk.CTkFrame(action_frame, fg_color="transparent")
-        bottom_frame.pack(fill="x")
+        self._undo_btn = ctk.CTkButton(
+            actions,
+            text="↩",
+            width=36,
+            height=30,
+            font=ctk.CTkFont(size=16),
+            fg_color=_BTN_ACTION,
+            hover_color=_BTN_ACTION_HOV,
+            command=self._undo,
+        )
+        self._undo_btn.pack(side="left", padx=(0, 4))
 
-        ctk.CTkButton(
-            bottom_frame,
-            text="Reset",
-            width=100,
-            fg_color="#6B7280",
-            hover_color="#4B5563",
-            command=self._reset_session,
-        ).pack(side="left")
-
-        ctk.CTkButton(
-            bottom_frame,
-            text="Terminer le Daily",
-            width=140,
-            fg_color="#DC2626",
-            hover_color="#B91C1C",
+        self._end_btn = ctk.CTkButton(
+            actions,
+            text="■",
+            width=36,
+            height=30,
+            font=ctk.CTkFont(size=14),
+            fg_color=_BTN_END,
+            hover_color=_BTN_END_HOV,
             command=self._on_end_session,
-        ).pack(side="right")
+        )
+        self._end_btn.pack(side="right")
+
+    # ── API publique ──────────────────────────────────────────
 
     def start_session(self, attendees: list[str]):
         """Démarre une nouvelle session avec les participants donnés."""
         self._session = Session(attendees)
-        self._last_picked = None
+        self._highlighted = None
+        self._apply_layout()
+        self._refresh()
+
+    # ── Actions utilisateur ───────────────────────────────────
+
+    def _mark_spoken(self, name: str):
+        """Clic sur un prénom → il a parlé, disparaît."""
+        if self._session is None:
+            return
+        if self._highlighted == name:
+            self._highlighted = None
+        self._session.mark_spoken(name)
         self._refresh()
 
     def _pick_random(self):
-        """Tire au sort le prochain intervenant."""
+        """Tire au sort parmi les restants, surligne + retire."""
         if self._session is None or self._session.is_complete:
             return
         chosen = self._session.pick_random()
         if chosen:
-            self._last_picked = chosen
+            self._highlighted = chosen
             self._refresh()
 
-    def _mark_spoken(self, name: str):
-        """Marque manuellement une personne comme ayant parlé."""
+    def _undo(self):
+        """Annule le dernier événement : réapparaît le dernier nom disparu."""
         if self._session is None:
             return
-        self._session.mark_spoken(name)
+        restored = self._session.undo_last()
+        if restored:
+            # Si le nom restauré était le surligné, on efface le surlignage
+            if self._highlighted == restored:
+                self._highlighted = None
+            self._refresh()
+
+    # ── Layout ────────────────────────────────────────────────
+
+    def _toggle_layout(self):
+        """Bascule entre mode vertical et horizontal."""
+        if self._layout == self.VERTICAL:
+            self._layout = self.HORIZONTAL
+        else:
+            self._layout = self.VERTICAL
+        self._apply_layout()
         self._refresh()
 
-    def _unmark_spoken(self, name: str):
-        """Annule le marquage d'une personne."""
-        if self._session is None:
-            return
-        self._session.unmark_spoken(name)
-        self._last_picked = None
-        self._refresh()
+    def _apply_layout(self):
+        """Repositionne et redimensionne la fenêtre selon le layout."""
+        win = self._get_window()
+        sw = win.winfo_screenwidth()
+        sh = win.winfo_screenheight()
 
-    def _reset_session(self):
-        """Remet tous les participants comme n'ayant pas parlé."""
-        if self._session is None:
-            return
-        self._session.reset()
-        self._last_picked = None
-        self._refresh()
+        if self._layout == self.VERTICAL:
+            w = max(120, int(sw * 0.07))
+            h = int(sh * 0.80)
+            x = sw - w
+            y = int(sh * 0.10)
+            win.geometry(f"{w}x{h}+{x}+{y}")
+
+            # Réorganiser le scroll en vertical
+            self._names_scroll.configure(orientation="vertical")   # type: ignore[call-arg]
+
+        else:  # HORIZONTAL
+            w = sw
+            h = 130
+            x = 0
+            y = 0
+            win.geometry(f"{w}x{h}+{x}+{y}")
+
+    # ── Rendu ─────────────────────────────────────────────────
 
     def _refresh(self):
-        """Met à jour l'affichage complet de la session."""
+        """Met à jour l'affichage."""
         if self._session is None:
             return
 
-        # Progression
-        spoken = self._session.spoken_count
-        total = self._session.total
-        self._progress_label.configure(text=f"{spoken} / {total} ont parlé")
-
-        progress = spoken / total if total > 0 else 0
-        self._progress_bar.set(progress)
-
-        # Annonce tirage
-        if self._last_picked:
-            self._announce_frame.pack(fill="x", padx=20, pady=(0, 10),
-                                       after=self._progress_bar)
-            self._announce_label.configure(
-                text=f">>> {self._last_picked} <<<"
-            )
-        else:
-            self._announce_frame.pack_forget()
-
-        # Message fin
-        if self._session.is_complete:
-            self._title.configure(text="Daily terminé !")
-            self._random_btn.configure(state="disabled", text="Tout le monde a parlé")
-        else:
-            self._title.configure(text="Daily en cours")
-            self._random_btn.configure(state="normal", text="Tirer au sort")
-
-        # Liste "N'ont pas encore parlé"
-        for widget in self._remaining_frame.winfo_children():
-            widget.destroy()
-
         remaining = self._session.remaining
-        if not remaining:
+        spoken_count = self._session.spoken_count
+        total = self._session.total
+
+        # Compteur
+        self._counter_label.configure(text=f"{spoken_count}/{total} ont parlé")
+
+        # Vider la zone des prénoms
+        for w in self._names_scroll.winfo_children():
+            w.destroy()
+
+        if self._session.is_complete:
             ctk.CTkLabel(
-                self._remaining_frame,
-                text="Tout le monde a parlé !",
-                text_color="#4ADE80",
-                font=ctk.CTkFont(size=12),
-            ).pack(pady=10)
+                self._names_scroll,
+                text="Tout le monde\na parlé !",
+                font=ctk.CTkFont(size=12, weight="bold"),
+                text_color=_TXT_HIGHLIGHT,
+                justify="center",
+            ).pack(pady=10, padx=4)
+            self._random_btn.configure(state="disabled")
+            return
+
+        self._random_btn.configure(state="normal")
+
+        if self._layout == self.VERTICAL:
+            self._render_vertical(remaining)
         else:
-            for name in remaining:
-                btn = ctk.CTkButton(
-                    self._remaining_frame,
-                    text=name,
-                    height=35,
-                    font=ctk.CTkFont(size=13),
-                    fg_color="#374151",
-                    hover_color="#4B5563",
-                    anchor="w",
-                    command=lambda n=name: self._mark_spoken(n),
-                )
-                btn.pack(fill="x", pady=2, padx=5)
+            self._render_horizontal(remaining)
 
-        # Liste "Ont parlé"
-        for widget in self._spoken_frame.winfo_children():
-            widget.destroy()
+        # Undo disponible seulement si quelqu'un a parlé
+        self._undo_btn.configure(
+            state="normal" if spoken_count > 0 else "disabled"
+        )
 
-        spoken_list = self._session.spoken
-        if not spoken_list:
-            ctk.CTkLabel(
-                self._spoken_frame,
-                text="Personne n'a encore parlé",
-                text_color="gray",
-                font=ctk.CTkFont(size=12),
-            ).pack(pady=10)
-        else:
-            for i, name in enumerate(spoken_list, 1):
-                row = ctk.CTkFrame(self._spoken_frame, fg_color="transparent")
-                row.pack(fill="x", pady=2, padx=5)
+    def _render_vertical(self, remaining: list[str]):
+        """Affiche les prénoms en colonne."""
+        for name in remaining:
+            is_hl = (name == self._highlighted)
+            btn = ctk.CTkButton(
+                self._names_scroll,
+                text=name,
+                height=32,
+                font=ctk.CTkFont(size=13, weight="bold" if is_hl else "normal"),
+                fg_color=_BTN_HIGHLIGHT if is_hl else _BTN_DEFAULT,
+                hover_color=_BTN_HOVER,
+                text_color=_TXT_HIGHLIGHT if is_hl else _TXT_NORMAL,
+                anchor="center",
+                corner_radius=6,
+                command=lambda n=name: self._mark_spoken(n),
+            )
+            btn.pack(fill="x", pady=2, padx=2)
 
-                ctk.CTkLabel(
-                    row,
-                    text=f"  {i}. {name}",
-                    font=ctk.CTkFont(size=13),
-                    text_color="#9CA3AF",
-                    anchor="w",
-                ).pack(side="left", fill="x", expand=True)
+    def _render_horizontal(self, remaining: list[str]):
+        """Affiche les prénoms en ligne (wrap manuel par frame)."""
+        # On utilise un frame avec wrapping via pack en mode left
+        wrap_frame = ctk.CTkFrame(self._names_scroll, fg_color="transparent")
+        wrap_frame.pack(fill="both", expand=True)
 
-                # Bouton annuler
-                ctk.CTkButton(
-                    row,
-                    text="Annuler",
-                    width=55,
-                    height=24,
-                    font=ctk.CTkFont(size=10),
-                    fg_color="#6B7280",
-                    hover_color="#9CA3AF",
-                    command=lambda n=name: self._unmark_spoken(n),
-                ).pack(side="right")
+        for name in remaining:
+            is_hl = (name == self._highlighted)
+            btn = ctk.CTkButton(
+                wrap_frame,
+                text=name,
+                height=30,
+                font=ctk.CTkFont(size=12, weight="bold" if is_hl else "normal"),
+                fg_color=_BTN_HIGHLIGHT if is_hl else _BTN_DEFAULT,
+                hover_color=_BTN_HOVER,
+                text_color=_TXT_HIGHLIGHT if is_hl else _TXT_NORMAL,
+                corner_radius=6,
+                command=lambda n=name: self._mark_spoken(n),
+            )
+            btn.pack(side="left", padx=3, pady=3)

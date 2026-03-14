@@ -101,6 +101,18 @@ class Session:
         self._spoken.append(chosen)
         return chosen
 
+    def undo_last(self) -> str | None:
+        """
+        Annule le dernier événement : retire la dernière personne de spoken
+        et la remet dans les restants.
+
+        Returns:
+            Le nom de la personne restaurée, ou None si spoken est vide.
+        """
+        if not self._spoken:
+            return None
+        return self._spoken.pop()
+
     def reset(self) -> None:
         """Remet la session à zéro (personne n'a parlé)."""
         self._spoken.clear()

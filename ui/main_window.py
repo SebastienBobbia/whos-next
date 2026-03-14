@@ -22,9 +22,9 @@ class MainWindow(ctk.CTk):
         super().__init__()
 
         # Configuration de la fenêtre
-        self.title("Who's Next? — Daily Meeting Tracker")
+        self.title("Who's Next?")
         self.geometry("420x550")
-        self.minsize(350, 450)
+        self.minsize(120, 150)
         self.attributes("-topmost", True)  # always-on-top
 
         # Thème sombre
@@ -53,9 +53,10 @@ class MainWindow(ctk.CTk):
         self._session_view = SessionView(
             self._container,
             on_end_session=self._end_session,
+            get_window=lambda: self,
         )
 
-        # Toggle always-on-top (petit bouton en bas)
+        # Toggle always-on-top (petit bouton en bas, caché en session)
         self._topmost_var = ctk.BooleanVar(value=True)
         self._topmost_cb = ctk.CTkCheckBox(
             self,
@@ -81,21 +82,31 @@ class MainWindow(ctk.CTk):
         self._session_view.pack_forget()
 
     def _show_team(self):
-        """Affiche la vue de gestion d'équipe."""
+        """Affiche la vue de gestion d'équipe, restaure la géométrie normale."""
         self._hide_all()
+        self._topmost_cb.pack(side="bottom", pady=(0, 5))
+        self.geometry("420x550")
+        self.minsize(350, 450)
         self._team_view.pack(in_=self._container, fill="both", expand=True)
 
     def _show_setup(self):
         """Affiche la vue de sélection des présents."""
         if not self._team.members:
-            return  # pas de membres, on reste sur la vue équipe
+            return
         self._hide_all()
+        self._topmost_cb.pack(side="bottom", pady=(0, 5))
+        self.geometry("420x550")
+        self.minsize(350, 450)
         self._setup_view.refresh()
         self._setup_view.pack(in_=self._container, fill="both", expand=True)
 
     def _start_session(self, attendees: list[str]):
-        """Lance une session live avec les participants sélectionnés."""
+        """Lance une session live : cache le footer, laisse SessionView gérer la géométrie."""
         self._hide_all()
+        # Cacher la checkbox pendant la session (pas de place)
+        self._topmost_cb.pack_forget()
+        # Taille minimale compacte pour le mode session
+        self.minsize(120, 100)
         self._session_view.pack(in_=self._container, fill="both", expand=True)
         self._session_view.start_session(attendees)
 

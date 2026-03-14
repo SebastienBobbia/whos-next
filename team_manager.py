@@ -1,9 +1,14 @@
 """
 Team Manager — Gestion des membres de l'équipe avec persistance JSON.
+
+Stockage persistant :
+  - Windows : %APPDATA%\\WhosNext\\team.json
+  - Linux/Mac : ~/.whonext/team.json
 """
 
 import json
 import os
+import sys
 from pathlib import Path
 
 
@@ -12,9 +17,7 @@ class TeamManager:
 
     def __init__(self, data_path: str | None = None):
         if data_path is None:
-            # Stocke les données à côté de l'exécutable / du script
-            app_dir = Path(__file__).parent
-            self._data_dir = app_dir / "data"
+            self._data_dir = self._resolve_data_dir()
         else:
             self._data_dir = Path(data_path)
 
@@ -22,6 +25,20 @@ class TeamManager:
         self._file = self._data_dir / "team.json"
         self._members: list[str] = []
         self._load()
+
+    @staticmethod
+    def _resolve_data_dir() -> Path:
+        """
+        Résout le répertoire de données persistant selon l'OS.
+        - Windows : %APPDATA%\\WhosNext\\
+        - Linux/Mac : ~/.whonext/
+        Garantit que les données survivent entre les relances de l'exe PyInstaller.
+        """
+        if sys.platform == "win32":
+            appdata = os.environ.get("APPDATA")
+            if appdata:
+                return Path(appdata) / "WhosNext"
+        return Path.home() / ".whonext"
 
     # ── Public API ────────────────────────────────────────────
 
