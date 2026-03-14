@@ -63,33 +63,21 @@ class SessionView(ctk.CTkFrame):
         top.pack(fill="x", padx=4, pady=(2, 1))
         top.pack_propagate(False)
 
-        # Spacer à gauche pour pousser les boutons à droite
-        ctk.CTkFrame(top, fg_color="transparent").pack(side="left", fill="both", expand=True)
+        # Spacer à droite pour pousser les boutons à gauche
+        ctk.CTkFrame(top, fg_color="transparent").pack(side="right", fill="both", expand=True)
 
-        # Boutons à droite : ⇄ 🎲 ↩ ■
-        self._end_btn = ctk.CTkButton(
+        # Boutons à gauche : ⇄ 🎲 ↩ ■
+        self._layout_btn = ctk.CTkButton(
             top,
-            text="■",
+            text="⇄",
             width=26,
             height=24,
             font=ctk.CTkFont(size=11),
-            fg_color=_BTN_END,
-            hover_color=_BTN_END_HOV,
-            command=self._on_end_session,
-        )
-        self._end_btn.pack(side="right", padx=(1, 0))
-
-        self._undo_btn = ctk.CTkButton(
-            top,
-            text="↩",
-            width=26,
-            height=24,
-            font=ctk.CTkFont(size=12),
             fg_color=_BTN_ACTION,
             hover_color=_BTN_ACTION_HOV,
-            command=self._undo,
+            command=self._toggle_layout,
         )
-        self._undo_btn.pack(side="right", padx=1)
+        self._layout_btn.pack(side="left", padx=(2, 1))
 
         self._random_btn = ctk.CTkButton(
             top,
@@ -101,19 +89,31 @@ class SessionView(ctk.CTkFrame):
             hover_color="#1D4ED8",
             command=self._pick_random,
         )
-        self._random_btn.pack(side="right", padx=1)
+        self._random_btn.pack(side="left", padx=1)
 
-        self._layout_btn = ctk.CTkButton(
+        self._undo_btn = ctk.CTkButton(
             top,
-            text="⇄",
+            text="↩",
+            width=26,
+            height=24,
+            font=ctk.CTkFont(size=12),
+            fg_color=_BTN_ACTION,
+            hover_color=_BTN_ACTION_HOV,
+            command=self._undo,
+        )
+        self._undo_btn.pack(side="left", padx=1)
+
+        self._end_btn = ctk.CTkButton(
+            top,
+            text="■",
             width=26,
             height=24,
             font=ctk.CTkFont(size=11),
-            fg_color=_BTN_ACTION,
-            hover_color=_BTN_ACTION_HOV,
-            command=self._toggle_layout,
+            fg_color=_BTN_END,
+            hover_color=_BTN_END_HOV,
+            command=self._on_end_session,
         )
-        self._layout_btn.pack(side="right", padx=(0, 2))
+        self._end_btn.pack(side="left", padx=(1, 0))
 
         # Zone des prénoms — prend tout l'espace restant
         self._names_outer = ctk.CTkFrame(self, fg_color="transparent")
@@ -186,8 +186,8 @@ class SessionView(ctk.CTkFrame):
         sh = win.winfo_screenheight()
 
         if self._layout == self.VERTICAL:
-            w = max(120, int(sw * 0.07))
-            h = sh          # 100% de la hauteur
+            w = max(115, int(sw * 0.07))
+            h = sh
             x = sw - w
             y = 0
             win.geometry(f"{w}x{h}+{x}+{y}")
