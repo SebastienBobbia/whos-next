@@ -34,9 +34,9 @@ _BTN_END_HOV    = "#DC2626"
 _CELEBRATION_BG  = "#000000"
 _CELEBRATION_TXT = "#FFD600"
 
-# Hauteur de la barre unique (tous les boutons)
-_TOP_BAR_H  = 32
-_RESERVED_H = _TOP_BAR_H + 10   # marges incluses
+# Hauteur réservée aux boutons en mode vertical (4 × (24+2px pady) + marges)
+_TOP_BAR_H  = 4 * 26 + 10   # ~114px
+_RESERVED_H = _TOP_BAR_H + 10
 
 
 class SessionView(ctk.CTkFrame):
@@ -58,67 +58,57 @@ class SessionView(ctk.CTkFrame):
     # ── Construction UI ───────────────────────────────────────
 
     def _build_ui(self):
-        # Barre unique : compteur + tous les boutons sur une seule ligne
-        top = ctk.CTkFrame(self, fg_color="transparent", height=_TOP_BAR_H)
-        top.pack(fill="x", padx=4, pady=(2, 1))
-        top.pack_propagate(False)
-
-        # Spacer à droite pour pousser les boutons à gauche
-        ctk.CTkFrame(top, fg_color="transparent").pack(side="right", fill="both", expand=True)
-
-        # Boutons à gauche : ⇄ 🎲 ↩ ■
-        self._layout_btn = ctk.CTkButton(
-            top,
-            text="⇄",
-            width=26,
-            height=24,
-            font=ctk.CTkFont(size=11),
-            fg_color=_BTN_ACTION,
-            hover_color=_BTN_ACTION_HOV,
-            command=self._toggle_layout,
-        )
-        self._layout_btn.pack(side="left", padx=(2, 1))
-
-        self._random_btn = ctk.CTkButton(
-            top,
-            text="🎲",
-            width=26,
-            height=24,
-            font=ctk.CTkFont(size=12),
-            fg_color=_BTN_ACTION,
-            hover_color="#1D4ED8",
-            command=self._pick_random,
-        )
-        self._random_btn.pack(side="left", padx=1)
-
-        self._undo_btn = ctk.CTkButton(
-            top,
-            text="↩",
-            width=26,
-            height=24,
-            font=ctk.CTkFont(size=12),
-            fg_color=_BTN_ACTION,
-            hover_color=_BTN_ACTION_HOV,
-            command=self._undo,
-        )
-        self._undo_btn.pack(side="left", padx=1)
-
-        self._end_btn = ctk.CTkButton(
-            top,
-            text="■",
-            width=26,
-            height=24,
-            font=ctk.CTkFont(size=11),
-            fg_color=_BTN_END,
-            hover_color=_BTN_END_HOV,
-            command=self._on_end_session,
-        )
-        self._end_btn.pack(side="left", padx=(1, 0))
+        # Conteneur de la barre de boutons (reconstruit selon layout)
+        self._top = ctk.CTkFrame(self, fg_color="transparent")
+        self._top.pack(fill="x", padx=2, pady=(2, 1))
 
         # Zone des prénoms — prend tout l'espace restant
         self._names_outer = ctk.CTkFrame(self, fg_color="transparent")
         self._names_outer.pack(fill="both", expand=True, padx=2, pady=(0, 2))
         self._names_outer.bind("<Configure>", self._on_names_resize)
+
+        # Créer les boutons (sans les placer encore)
+        self._layout_btn = ctk.CTkButton(
+            self._top, text="⇄", width=26, height=24,
+            font=ctk.CTkFont(size=11),
+            fg_color=_BTN_ACTION, hover_color=_BTN_ACTION_HOV,
+            command=self._toggle_layout,
+        )
+        self._random_btn = ctk.CTkButton(
+            self._top, text="🎲", width=26, height=24,
+            font=ctk.CTkFont(size=12),
+            fg_color=_BTN_ACTION, hover_color="#1D4ED8",
+            command=self._pick_random,
+        )
+        self._undo_btn = ctk.CTkButton(
+            self._top, text="↩", width=26, height=24,
+            font=ctk.CTkFont(size=12),
+            fg_color=_BTN_ACTION, hover_color=_BTN_ACTION_HOV,
+            command=self._undo,
+        )
+        self._end_btn = ctk.CTkButton(
+            self._top, text="■", width=26, height=24,
+            font=ctk.CTkFont(size=11),
+            fg_color=_BTN_END, hover_color=_BTN_END_HOV,
+            command=self._on_end_session,
+        )
+
+    def _place_buttons(self):
+        """Replace les boutons selon le layout courant."""
+        for btn in (self._layout_btn, self._random_btn,
+                    self._undo_btn, self._end_btn):
+            btn.pack_forget()
+
+        if self._layout == self.VERTICAL:
+            # En vertical : fenêtre étroite → boutons empilés verticalement
+            for btn in (self._layout_btn, self._random_btn,
+                        self._undo_btn, self._end_btn):
+                btn.pack(fill="x", padx=2, pady=1)
+        else:
+            # En horizontal : place suffisante → boutons sur une ligne
+            for btn in (self._layout_btn, self._random_btn,
+                        self._undo_btn, self._end_btn):
+                btn.pack(side="left", padx=2, pady=2)
 
     def _on_names_resize(self, event):
         """Recalcule les hauteurs de boutons quand la zone change de taille."""
@@ -186,7 +176,7 @@ class SessionView(ctk.CTkFrame):
         sh = win.winfo_screenheight()
 
         if self._layout == self.VERTICAL:
-            w = max(115, int(sw * 0.07))
+            w = max(34, int(sw * 0.07))   # 34px = largeur bouton + paddings
             h = sh
             x = sw - w
             y = 0
@@ -197,6 +187,8 @@ class SessionView(ctk.CTkFrame):
             x = 0
             y = 0
             win.geometry(f"{w}x{h}+{x}+{y}")
+
+        self._place_buttons()
 
     # ── Rendu ─────────────────────────────────────────────────
 
