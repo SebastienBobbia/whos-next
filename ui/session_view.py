@@ -34,8 +34,8 @@ _BTN_END_HOV    = "#DC2626"
 _CELEBRATION_BG  = "#000000"
 _CELEBRATION_TXT = "#FFD600"
 
-# Hauteur réservée aux boutons en mode vertical (4 × (24+2px pady) + marges)
-_TOP_BAR_H  = 4 * 26 + 10   # ~114px
+# 4 boutons × 22px + 3 × 2px padding + 4px marges = ~98px minimum
+_TOP_BAR_H  = 26   # hauteur de la barre (bouton 22px + pady 2×2)
 _RESERVED_H = _TOP_BAR_H + 10
 
 
@@ -58,57 +58,48 @@ class SessionView(ctk.CTkFrame):
     # ── Construction UI ───────────────────────────────────────
 
     def _build_ui(self):
-        # Conteneur de la barre de boutons (reconstruit selon layout)
+        # Barre unique : boutons côte à côte, compacts
         self._top = ctk.CTkFrame(self, fg_color="transparent")
-        self._top.pack(fill="x", padx=2, pady=(2, 1))
+        self._top.pack(fill="x", padx=0, pady=(2, 1))
 
         # Zone des prénoms — prend tout l'espace restant
         self._names_outer = ctk.CTkFrame(self, fg_color="transparent")
         self._names_outer.pack(fill="both", expand=True, padx=2, pady=(0, 2))
         self._names_outer.bind("<Configure>", self._on_names_resize)
 
-        # Créer les boutons (sans les placer encore)
+        btn_opts = dict(width=22, height=22, corner_radius=4, border_width=0)
+
         self._layout_btn = ctk.CTkButton(
-            self._top, text="⇄", width=26, height=24,
-            font=ctk.CTkFont(size=11),
+            self._top, text="⇄",
+            font=ctk.CTkFont(size=10),
             fg_color=_BTN_ACTION, hover_color=_BTN_ACTION_HOV,
-            command=self._toggle_layout,
+            command=self._toggle_layout, **btn_opts,
         )
         self._random_btn = ctk.CTkButton(
-            self._top, text="🎲", width=26, height=24,
-            font=ctk.CTkFont(size=12),
+            self._top, text="🎲",
+            font=ctk.CTkFont(size=10),
             fg_color=_BTN_ACTION, hover_color="#1D4ED8",
-            command=self._pick_random,
+            command=self._pick_random, **btn_opts,
         )
         self._undo_btn = ctk.CTkButton(
-            self._top, text="↩", width=26, height=24,
-            font=ctk.CTkFont(size=12),
+            self._top, text="↩",
+            font=ctk.CTkFont(size=11),
             fg_color=_BTN_ACTION, hover_color=_BTN_ACTION_HOV,
-            command=self._undo,
+            command=self._undo, **btn_opts,
         )
         self._end_btn = ctk.CTkButton(
-            self._top, text="■", width=26, height=24,
-            font=ctk.CTkFont(size=11),
+            self._top, text="■",
+            font=ctk.CTkFont(size=9),
             fg_color=_BTN_END, hover_color=_BTN_END_HOV,
-            command=self._on_end_session,
+            command=self._on_end_session, **btn_opts,
         )
 
-    def _place_buttons(self):
-        """Replace les boutons selon le layout courant."""
         for btn in (self._layout_btn, self._random_btn,
                     self._undo_btn, self._end_btn):
-            btn.pack_forget()
+            btn.pack(side="left", padx=1, pady=1)
 
-        if self._layout == self.VERTICAL:
-            # En vertical : fenêtre étroite → boutons empilés verticalement
-            for btn in (self._layout_btn, self._random_btn,
-                        self._undo_btn, self._end_btn):
-                btn.pack(fill="x", padx=2, pady=1)
-        else:
-            # En horizontal : place suffisante → boutons sur une ligne
-            for btn in (self._layout_btn, self._random_btn,
-                        self._undo_btn, self._end_btn):
-                btn.pack(side="left", padx=2, pady=2)
+    def _place_buttons(self):
+        pass  # layout fixe, rien à replacer
 
     def _on_names_resize(self, event):
         """Recalcule les hauteurs de boutons quand la zone change de taille."""
@@ -176,7 +167,7 @@ class SessionView(ctk.CTkFrame):
         sh = win.winfo_screenheight()
 
         if self._layout == self.VERTICAL:
-            w = max(34, int(sw * 0.07))   # 34px = largeur bouton + paddings
+            w = max(98, int(sw * 0.07))   # 98px = 4×22 + 3×2 pad + 4 marges
             h = sh
             x = sw - w
             y = 0
