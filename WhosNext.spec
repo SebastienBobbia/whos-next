@@ -11,21 +11,16 @@ datas = [
     (str(ctk_path / 'assets'), 'customtkinter/assets'),
 ]
 
-# NOTE: Tcl/Tk est géré automatiquement par le hook PyInstaller (hook-_tkinter.py)
-# Ne pas l'inclure manuellement ici pour éviter les conflits cross-platform.
-
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
     datas=datas,
     hiddenimports=[
-        # Tkinter
         'tkinter',
         '_tkinter',
         'tkinter.filedialog',
         'tkinter.messagebox',
-        # Pillow — modules de base
         'PIL',
         'PIL.Image',
         'PIL.ImageTk',
@@ -34,29 +29,24 @@ a = Analysis(
         'PIL.ImagePalette',
         'PIL.ImageOps',
         'PIL.ImageFilter',
-        # Pillow — plugins format image (chargés dynamiquement à runtime)
         'PIL.PngImagePlugin',
         'PIL.JpegImagePlugin',
         'PIL.BmpImagePlugin',
         'PIL.GifImagePlugin',
         'PIL.WebPImagePlugin',
         'PIL.IcoImagePlugin',
-        # customtkinter
         'customtkinter',
-        # darkdetect (dépendance customtkinter, sous-modules conditionnels par OS)
         'darkdetect',
         'darkdetect._linux_detect',
         'darkdetect._windows_detect',
         'darkdetect._mac_detect',
-        # packaging (utilisé par customtkinter pour comparer les versions)
         'packaging',
         'packaging.version',
-        # stdlib
         'collections',
     ],
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=['rthook_tcl.py'],
+    runtime_hooks=[],
     excludes=[],
     noarchive=False,
     optimize=0,
@@ -68,7 +58,6 @@ exe = EXE(
     a.scripts,
     a.binaries,
     a.datas,
-    [],
     name='WhosNext',
     debug=False,
     bootloader_ignore_signals=False,
@@ -82,4 +71,15 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+)
+
+# Mode one-folder : crée dist/WhosNext/ avec WhosNext.exe + tous les fichiers
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    name='WhosNext',
 )
