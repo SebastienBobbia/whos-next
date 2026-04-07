@@ -4,16 +4,29 @@ import sys
 from pathlib import Path
 import customtkinter
 
-# Chemin vers les assets customtkinter (fonts, thèmes JSON)
+# ── Assets customtkinter (fonts, thèmes JSON) ─────────────────
 ctk_path = Path(customtkinter.__file__).parent
+
+# ── Tcl/Tk : chemin calculé dynamiquement depuis l'exe Python ─
+# Structure standard : <python_root>/tcl/tcl8.6  et  <python_root>/tcl/tk8.6
+python_root = Path(sys.executable).parent
+tcl_root = python_root / 'tcl'
+
+datas = [
+    (str(ctk_path / 'assets'), 'customtkinter/assets'),
+]
+
+# Inclure tcl8.6 et tk8.6 s'ils existent (Windows)
+if (tcl_root / 'tcl8.6').exists():
+    datas.append((str(tcl_root / 'tcl8.6'), 'tcl8.6'))
+if (tcl_root / 'tk8.6').exists():
+    datas.append((str(tcl_root / 'tk8.6'), 'tk8.6'))
 
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[
-        (str(ctk_path / 'assets'), 'customtkinter/assets'),
-    ],
+    datas=datas,
     hiddenimports=[
         # Tkinter
         'tkinter',
