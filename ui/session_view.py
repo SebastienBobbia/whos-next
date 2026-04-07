@@ -11,11 +11,18 @@ Tirage aléatoire : surligne le prénom choisi et le retire.
 Undo : réapparaît la dernière personne disparue.
 
 Pas de scroll : les boutons de prénoms occupent tout l'espace disponible.
+
+Nouvelles fonctionnalités :
+  - Affichage de l'icône (emoji ou image) sur chaque tuile
+  - Mode icône seule quand les tuiles sont trop petites
+  - Couleur dominante de l'icône image appliquée en fond de tuile
 """
 
 import customtkinter as ctk
+from PIL import Image
 
 from session import Session
+from team_manager import TeamManager, Member
 
 # ── Constantes de style ───────────────────────────────────────
 _BG             = "#1a1a2e"
@@ -38,6 +45,53 @@ _CELEBRATION_TXT = "#FFD600"
 _TOP_BAR_H  = 26   # hauteur de la barre (bouton 22px + pady 2×2)
 _RESERVED_H = _TOP_BAR_H + 10
 
+# ── Seuils mode icône seule ───────────────────────────────────
+# En dessous de ces dimensions la tuile n'affiche que l'icône
+_ICON_ONLY_H = 48   # hauteur en vertical
+_ICON_ONLY_W = 70   # largeur en horizontal
+
+
+def _dominant_color(img: Image.Image, darken: float = 0.55) -> str:
+    """
+    Extrait la couleur dominante d'une image PIL et retourne un code hex CSS.
+    La couleur est assombrie pour rester compatible avec le thème sombre.
+
+    Args:
+        img:     image PIL (RGB ou RGBA)
+        darken:  facteur d'assombrissement [0..1], 1 = inchangée
+
+    Returns:
+        Couleur hex (#rrggbb) ou _BTN_DEFAULT si échec.
+    """
+    try:
+        # Réduire à une petite image pour la vitesse
+        small = img.convert("RGB").resize((64, 64), Image.LANCZOS)
+        # Quantifier en N couleurs et prendre la plus fréquente
+        quantized = small.quantize(colors=8, method=Image.Quantize.MEDIANCUT)
+        palette = quantized.getpalette()  # flat list [r,g,b, r,g,b, ...]
+        if not palette:
+            return _BTN_DEFAULT
+        # Compter les pixels par couleur d'index
+        from collections import Counter
+        try:
+            pixels = list(quantized.get_flattened_data())
+        except AttributeError:
+            pixels = list(quantized.getdata())
+        counts = Counter(pixels)
+        dominant_idx = counts.most_common(1)[0][0]
+        r = int(palette[dominant_idx * 3]     * darken)
+        g = int(palette[dominant_idx * 3 + 1] * darken)
+        b = int(palette[dominant_idx * 3 + 2] * darken)
+        # Garantir que la couleur est suffisamment sombre (L < 160)
+        luminance = 0.299 * r + 0.587 * g + 0.114 * b
+        if luminance > 160:
+            r = int(r * 0.5)
+            g = int(g * 0.5)
+            b = int(b * 0.5)
+        return f"#{r:02x}{g:02x}{b:02x}"
+    except Exception:
+        return _BTN_DEFAULT
+
 
 class SessionView(ctk.CTkFrame):
     """Vue principale pendant le déroulement du daily meeting."""
@@ -45,13 +99,17 @@ class SessionView(ctk.CTkFrame):
     VERTICAL   = "vertical"
     HORIZONTAL = "horizontal"
 
-    def __init__(self, parent, on_end_session, get_window):
+    def __init__(self, parent, on_end_session, get_window, team_manager: TeamManager | None = None):
         super().__init__(parent, fg_color=_BG)
         self._session: Session | None = None
         self._on_end_session = on_end_session
         self._get_window = get_window
+        self._team: TeamManager | None = team_manager
         self._layout = self.VERTICAL
         self._highlighted: str | None = None
+
+        # Cache : {name -> (CTkImage | None, dominant_color str)}
+        self._icon_cache: dict[str, tuple] = {}
 
         self._build_ui()
 
@@ -108,20 +166,72 @@ class SessionView(ctk.CTkFrame):
 
     # ── API publique ──────────────────────────────────────────
 
+    def set_team_manager(self, team_manager: TeamManager):
+        """Injecte le TeamManager (appelé depuis MainWindow)."""
+        self._team = team_manager
+
     def start_session(self, attendees: list[str]):
         """Démarre une nouvelle session avec les participants donnés."""
         self._session = Session(attendees)
         self._highlighted = None
+        # Précalculer le cache icônes pour les participants
+        self._build_icon_cache(attendees)
         self._apply_layout()
         # Attendre que la fenêtre soit dessinée avant de calculer les hauteurs
         self._get_window().after(50, self._refresh)
+
+    # ── Cache icônes ──────────────────────────────────────────
+
+    def _build_icon_cache(self, names: list[str]):
+        """Pré-charge les icônes de tous les participants."""
+        self._icon_cache.clear()
+        if self._team is None:
+            return
+        for name in names:
+            member = self._team.get_member(name)
+            if member is None:
+                self._icon_cache[name] = (None, _BTN_DEFAULT)
+                continue
+            ctk_img, dom_color = self._load_member_icon(member)
+            self._icon_cache[name] = (ctk_img, dom_color)
+
+    def _load_member_icon(self, member: Member, size: int = 32) -> tuple:
+        """
+        Charge l'icône d'un membre et extrait sa couleur dominante.
+
+        Returns:
+            (CTkImage | None, dominant_color str)
+        """
+        if member["icon_type"] == "image":
+            img_path = self._team.get_icon_path(member)
+            if img_path:
+                try:
+                    pil_img = Image.open(img_path).convert("RGBA")
+                    dom = _dominant_color(pil_img)
+                    ctk_img = ctk.CTkImage(pil_img, size=(size, size))
+                    return ctk_img, dom
+                except Exception:
+                    pass
+        # Emoji ou pas d'icône : pas d'image CTk, pas de couleur dominante
+        return None, _BTN_DEFAULT
+
+    def _get_icon_info(self, name: str) -> tuple:
+        """
+        Retourne (CTkImage | None, emoji_str | None, dominant_color) pour un nom.
+        """
+        ctk_img, dom_color = self._icon_cache.get(name, (None, _BTN_DEFAULT))
+        emoji = None
+        if self._team:
+            member = self._team.get_member(name)
+            if member and member["icon_type"] == "emoji" and member["icon_value"]:
+                emoji = member["icon_value"]
+        return ctk_img, emoji, dom_color
 
     # ── Actions utilisateur ───────────────────────────────────
 
     def _mark_spoken(self, name: str):
         if self._session is None:
             return
-        # Effacer le surlignage (quelle que soit la personne cliquée)
         self._highlighted = None
         self._session.mark_spoken(name)
         self._refresh()
@@ -130,7 +240,6 @@ class SessionView(ctk.CTkFrame):
         """Tire au sort parmi les restants et surligne uniquement — ne marque pas."""
         if self._session is None or self._session.is_complete:
             return
-        # Si quelqu'un est déjà surligné, on en tire un nouveau parmi les restants
         chosen = self._session.pick_random()
         if chosen:
             self._highlighted = chosen
@@ -139,13 +248,10 @@ class SessionView(ctk.CTkFrame):
     def _undo(self):
         if self._session is None:
             return
-        # Si quelqu'un est surligné (tiré au sort mais pas encore cliqué),
-        # on efface juste le surlignage sans toucher à la session
         if self._highlighted is not None:
             self._highlighted = None
             self._refresh()
             return
-        # Sinon on annule le dernier clic (dernier spoken)
         restored = self._session.undo_last()
         if restored:
             self._refresh()
@@ -167,7 +273,7 @@ class SessionView(ctk.CTkFrame):
         sh = win.winfo_screenheight()
 
         if self._layout == self.VERTICAL:
-            w = max(98, int(sw * 0.07))   # 98px = 4×22 + 3×2 pad + 4 marges
+            w = max(98, int(sw * 0.07))
             h = sh
             x = sw - w
             y = 0
@@ -190,10 +296,6 @@ class SessionView(ctk.CTkFrame):
 
         remaining  = self._session.remaining
         spoken_cnt = self._session.spoken_count
-        total      = self._session.total
-
-        # Compteur (supprimé de l'affichage — on garde juste le titre)
-        pass
 
         # Vider la zone des prénoms
         for child in self._names_outer.winfo_children():
@@ -218,15 +320,13 @@ class SessionView(ctk.CTkFrame):
     def _show_celebration(self):
         """
         Affiche une animation de célébration (texte jaune sur fond noir)
-        puis ferme automatiquement l'application après ~3 secondes.
+        puis ferme automatiquement l'application après ~1 seconde.
         """
         win = self._get_window()
 
-        # Fond noir sur toute la fenêtre
         self.configure(fg_color=_CELEBRATION_BG)
         self._names_outer.configure(fg_color=_CELEBRATION_BG)
 
-        # Taille de police dynamique selon la zone disponible
         self.update_idletasks()
         available_w = self._names_outer.winfo_width()
         available_h = self._names_outer.winfo_height()
@@ -235,8 +335,6 @@ class SessionView(ctk.CTkFrame):
         if available_h < 10:
             available_h = win.winfo_height() - _RESERVED_H
 
-        # Le texte fait ~16 caractères sur 2 lignes — on borne la police
-        # pour qu'elle rentre dans la largeur ET la hauteur disponibles
         font_size = max(10, min(available_h // 4, available_w // 9))
 
         label = ctk.CTkLabel(
@@ -249,7 +347,6 @@ class SessionView(ctk.CTkFrame):
         )
         label.pack(expand=True)
 
-        # Animation de pulse : alterne entre jaune vif et jaune foncé
         _colors = [_CELEBRATION_TXT, "#997F00"]
         _state  = {"step": 0, "running": True}
 
@@ -263,67 +360,205 @@ class SessionView(ctk.CTkFrame):
 
         _pulse()
 
-        # Auto-fermeture complète de l'application après 1 seconde
         def _close():
             _state["running"] = False
             self._get_window().destroy()
 
         win.after(1000, _close)
 
+    # ── Rendu vertical ────────────────────────────────────────
+
     def _render_vertical(self, remaining: list[str]):
         """
         Affiche les prénoms en colonne.
-        La hauteur de chaque bouton est calculée pour remplir tout l'espace
-        disponible sans laisser de vide ni nécessiter de scroll.
+        Bascule en mode icône seule si la tuile est trop petite.
         """
         n = len(remaining)
         if n == 0:
             return
 
-        # Récupérer la hauteur réelle disponible dans _names_outer
         self.update_idletasks()
         available_h = self._names_outer.winfo_height()
-
-        # Si la fenêtre n'est pas encore rendue, fallback
         if available_h < 10:
             available_h = self._get_window().winfo_height() - _RESERVED_H
 
-        pad_total  = 4 * n          # pady=2 haut + bas par bouton
-        btn_h      = max(24, (available_h - pad_total) // n)
-
-        # Largeur réelle disponible pour les boutons
-        self.update_idletasks()
         available_w = self._names_outer.winfo_width()
         if available_w < 10:
             available_w = self._get_window().winfo_width()
 
-        # Police : limitée par la hauteur ET la largeur du bouton
+        pad_total  = 4 * n
+        btn_h      = max(24, (available_h - pad_total) // n)
         font_size  = max(9, min(btn_h // 2, available_w // 6))
+
+        # Mode icône seule si tuile trop petite
+        icon_only = btn_h < _ICON_ONLY_H
 
         for name in remaining:
             is_hl = (name == self._highlighted)
+            ctk_img, emoji, dom_color = self._get_icon_info(name)
+
+            # Couleur de fond : highlight > couleur dominante > défaut
+            if is_hl:
+                fg = _BTN_HIGHLIGHT
+            elif dom_color != _BTN_DEFAULT:
+                fg = dom_color
+            else:
+                fg = _BTN_DEFAULT
+
+            # Préparer l'image redimensionnée selon la hauteur de tuile
+            img_for_btn = None
+            if not icon_only and ctk_img is not None:
+                icon_sz = max(16, min(btn_h - 16, 40))
+                img_for_btn = self._resize_ctk_image(name, icon_sz)
+
+            if icon_only:
+                # Mode compact : icône seule (emoji ou image)
+                self._render_tile_icon_only(
+                    name, btn_h, available_w, ctk_img, emoji, fg, is_hl
+                )
+            elif img_for_btn is not None:
+                # Image + texte
+                self._render_tile_image_text_vertical(
+                    name, btn_h, available_w, font_size, img_for_btn, fg, is_hl
+                )
+            elif emoji:
+                # Emoji + texte
+                self._render_tile_emoji_text_vertical(
+                    name, btn_h, available_w, font_size, emoji, fg, is_hl
+                )
+            else:
+                # Texte seul (pas d'icône)
+                btn = ctk.CTkButton(
+                    self._names_outer,
+                    text=name,
+                    height=btn_h,
+                    font=ctk.CTkFont(
+                        size=font_size,
+                        weight="bold" if is_hl else "normal",
+                    ),
+                    fg_color=fg,
+                    hover_color=_BTN_HOVER,
+                    text_color=_TXT_HIGHLIGHT if is_hl else _TXT_NORMAL,
+                    anchor="center",
+                    corner_radius=6,
+                    command=lambda nm=name: self._mark_spoken(nm),
+                )
+                btn.pack(fill="x", pady=2, padx=2)
+
+    def _render_tile_icon_only(self, name, btn_h, available_w,
+                                ctk_img, emoji, fg, is_hl):
+        """Tuile en mode icône seule (compact)."""
+        icon_sz = max(12, btn_h - 8)
+        img = self._resize_ctk_image(name, icon_sz) if ctk_img is not None else None
+
+        if img is not None:
             btn = ctk.CTkButton(
                 self._names_outer,
-                text=name,
+                text="",
+                image=img,
                 height=btn_h,
-                font=ctk.CTkFont(
-                    size=font_size,
-                    weight="bold" if is_hl else "normal",
-                ),
-                fg_color=_BTN_HIGHLIGHT if is_hl else _BTN_DEFAULT,
+                fg_color=_BTN_HIGHLIGHT if is_hl else fg,
                 hover_color=_BTN_HOVER,
-                text_color=_TXT_HIGHLIGHT if is_hl else _TXT_NORMAL,
-                anchor="center",
                 corner_radius=6,
                 command=lambda nm=name: self._mark_spoken(nm),
             )
-            btn.pack(fill="x", pady=2, padx=2)
+        elif emoji:
+            font_sz = max(9, min(btn_h - 8, available_w - 4))
+            btn = ctk.CTkButton(
+                self._names_outer,
+                text=emoji,
+                height=btn_h,
+                font=ctk.CTkFont(size=font_sz),
+                fg_color=_BTN_HIGHLIGHT if is_hl else fg,
+                hover_color=_BTN_HOVER,
+                text_color=_TXT_HIGHLIGHT if is_hl else _TXT_NORMAL,
+                corner_radius=6,
+                command=lambda nm=name: self._mark_spoken(nm),
+            )
+        else:
+            # Pas d'icône : initiales
+            initials = name[0].upper() if name else "?"
+            font_sz = max(9, min(btn_h - 8, available_w - 4))
+            btn = ctk.CTkButton(
+                self._names_outer,
+                text=initials,
+                height=btn_h,
+                font=ctk.CTkFont(size=font_sz, weight="bold"),
+                fg_color=_BTN_HIGHLIGHT if is_hl else fg,
+                hover_color=_BTN_HOVER,
+                text_color=_TXT_HIGHLIGHT if is_hl else _TXT_NORMAL,
+                corner_radius=6,
+                command=lambda nm=name: self._mark_spoken(nm),
+            )
+        btn.pack(fill="x", pady=2, padx=2)
+
+    def _render_tile_image_text_vertical(self, name, btn_h, available_w,
+                                          font_size, img, fg, is_hl):
+        """Tuile image + texte en mode vertical."""
+        btn = ctk.CTkButton(
+            self._names_outer,
+            text=name,
+            image=img,
+            compound="left",
+            height=btn_h,
+            font=ctk.CTkFont(
+                size=font_size,
+                weight="bold" if is_hl else "normal",
+            ),
+            fg_color=_BTN_HIGHLIGHT if is_hl else fg,
+            hover_color=_BTN_HOVER,
+            text_color=_TXT_HIGHLIGHT if is_hl else _TXT_NORMAL,
+            anchor="center",
+            corner_radius=6,
+            command=lambda nm=name: self._mark_spoken(nm),
+        )
+        btn.pack(fill="x", pady=2, padx=2)
+
+    def _render_tile_emoji_text_vertical(self, name, btn_h, available_w,
+                                          font_size, emoji, fg, is_hl):
+        """Tuile emoji + texte : emoji dans un label + bouton texte côte à côte."""
+        wrapper = ctk.CTkFrame(
+            self._names_outer,
+            height=btn_h,
+            fg_color=_BTN_HIGHLIGHT if is_hl else fg,
+            corner_radius=6,
+        )
+        wrapper.pack(fill="x", pady=2, padx=2)
+        wrapper.pack_propagate(False)
+
+        emoji_lbl = ctk.CTkLabel(
+            wrapper,
+            text=emoji,
+            font=ctk.CTkFont(size=max(10, font_size)),
+            fg_color="transparent",
+            width=font_size + 8,
+        )
+        emoji_lbl.pack(side="left", padx=(6, 0))
+
+        name_lbl = ctk.CTkLabel(
+            wrapper,
+            text=name,
+            font=ctk.CTkFont(
+                size=font_size,
+                weight="bold" if is_hl else "normal",
+            ),
+            fg_color="transparent",
+            text_color=_TXT_HIGHLIGHT if is_hl else _TXT_NORMAL,
+            anchor="center",
+        )
+        name_lbl.pack(side="left", fill="both", expand=True)
+
+        # Rendre toute la tuile cliquable
+        for w in (wrapper, emoji_lbl, name_lbl):
+            w.bind("<Button-1>", lambda e, nm=name: self._mark_spoken(nm))
+            w.configure(cursor="hand2")
+
+    # ── Rendu horizontal ──────────────────────────────────────
 
     def _render_horizontal(self, remaining: list[str]):
         """
         Affiche les prénoms en ligne côte à côte.
-        La largeur de chaque bouton est calculée pour remplir tout l'espace
-        disponible sans scroll. La hauteur remplit la zone disponible.
+        Bascule en mode icône seule si la tuile est trop étroite.
         """
         n = len(remaining)
         if n == 0:
@@ -338,30 +573,165 @@ class SessionView(ctk.CTkFrame):
         if available_h < 10:
             available_h = self._get_window().winfo_height() - _RESERVED_H
 
-        pad_total_w = 6 * n          # padx=3 gauche + droite par bouton
+        pad_total_w = 6 * n
         btn_w = max(40, (available_w - pad_total_w) // n)
 
-        pad_total_h = 6               # pady=3 haut + bas
+        pad_total_h = 6
         btn_h = max(24, available_h - pad_total_h)
 
-        # Police adaptée à la taille du bouton (pas de plafond artificiel)
         font_size = max(9, btn_h // 2)
+
+        # Mode icône seule si tuile trop étroite
+        icon_only = btn_w < _ICON_ONLY_W
 
         wrap = ctk.CTkFrame(self._names_outer, fg_color="transparent")
         wrap.pack(fill="both", expand=True)
 
         for name in remaining:
             is_hl = (name == self._highlighted)
+            ctk_img, emoji, dom_color = self._get_icon_info(name)
+
+            if is_hl:
+                fg = _BTN_HIGHLIGHT
+            elif dom_color != _BTN_DEFAULT:
+                fg = dom_color
+            else:
+                fg = _BTN_DEFAULT
+
+            if icon_only:
+                self._render_h_tile_icon_only(
+                    wrap, name, btn_w, btn_h, ctk_img, emoji, fg, is_hl
+                )
+            elif ctk_img is not None:
+                icon_sz = max(16, min(btn_h - 16, 40))
+                img = self._resize_ctk_image(name, icon_sz)
+                btn = ctk.CTkButton(
+                    wrap,
+                    text=name,
+                    image=img,
+                    compound="top",
+                    width=btn_w,
+                    height=btn_h,
+                    font=ctk.CTkFont(size=font_size, weight="bold" if is_hl else "normal"),
+                    fg_color=fg,
+                    hover_color=_BTN_HOVER,
+                    text_color=_TXT_HIGHLIGHT if is_hl else _TXT_NORMAL,
+                    corner_radius=6,
+                    command=lambda nm=name: self._mark_spoken(nm),
+                )
+                btn.pack(side="left", padx=3, pady=3)
+            elif emoji:
+                # Frame wrapper avec emoji au-dessus du nom
+                wrapper = ctk.CTkFrame(
+                    wrap,
+                    width=btn_w,
+                    height=btn_h,
+                    fg_color=fg,
+                    corner_radius=6,
+                )
+                wrapper.pack(side="left", padx=3, pady=3)
+                wrapper.pack_propagate(False)
+
+                ctk.CTkLabel(
+                    wrapper,
+                    text=emoji,
+                    font=ctk.CTkFont(size=max(10, font_size)),
+                    fg_color="transparent",
+                ).pack(expand=True)
+
+                ctk.CTkLabel(
+                    wrapper,
+                    text=name,
+                    font=ctk.CTkFont(size=max(8, font_size - 2),
+                                     weight="bold" if is_hl else "normal"),
+                    fg_color="transparent",
+                    text_color=_TXT_HIGHLIGHT if is_hl else _TXT_NORMAL,
+                ).pack()
+
+                for w in wrapper.winfo_children() + [wrapper]:
+                    w.bind("<Button-1>", lambda e, nm=name: self._mark_spoken(nm))
+                    w.configure(cursor="hand2")
+            else:
+                btn = ctk.CTkButton(
+                    wrap,
+                    text=name,
+                    width=btn_w,
+                    height=btn_h,
+                    font=ctk.CTkFont(size=font_size, weight="bold" if is_hl else "normal"),
+                    fg_color=fg,
+                    hover_color=_BTN_HOVER,
+                    text_color=_TXT_HIGHLIGHT if is_hl else _TXT_NORMAL,
+                    corner_radius=6,
+                    command=lambda nm=name: self._mark_spoken(nm),
+                )
+                btn.pack(side="left", padx=3, pady=3)
+
+    def _render_h_tile_icon_only(self, parent, name, btn_w, btn_h,
+                                   ctk_img, emoji, fg, is_hl):
+        """Tuile en mode icône seule (horizontal compact)."""
+        icon_sz = max(12, min(btn_h - 8, btn_w - 8))
+        img = self._resize_ctk_image(name, icon_sz) if ctk_img is not None else None
+
+        if img is not None:
             btn = ctk.CTkButton(
-                wrap,
-                text=name,
+                parent,
+                text="",
+                image=img,
                 width=btn_w,
                 height=btn_h,
-                font=ctk.CTkFont(size=font_size, weight="bold" if is_hl else "normal"),
-                fg_color=_BTN_HIGHLIGHT if is_hl else _BTN_DEFAULT,
+                fg_color=_BTN_HIGHLIGHT if is_hl else fg,
+                hover_color=_BTN_HOVER,
+                corner_radius=6,
+                command=lambda nm=name: self._mark_spoken(nm),
+            )
+        elif emoji:
+            font_sz = max(9, min(btn_h - 8, btn_w - 4))
+            btn = ctk.CTkButton(
+                parent,
+                text=emoji,
+                width=btn_w,
+                height=btn_h,
+                font=ctk.CTkFont(size=font_sz),
+                fg_color=_BTN_HIGHLIGHT if is_hl else fg,
                 hover_color=_BTN_HOVER,
                 text_color=_TXT_HIGHLIGHT if is_hl else _TXT_NORMAL,
                 corner_radius=6,
                 command=lambda nm=name: self._mark_spoken(nm),
             )
-            btn.pack(side="left", padx=3, pady=3)
+        else:
+            initials = name[0].upper() if name else "?"
+            font_sz = max(9, min(btn_h - 8, btn_w - 4))
+            btn = ctk.CTkButton(
+                parent,
+                text=initials,
+                width=btn_w,
+                height=btn_h,
+                font=ctk.CTkFont(size=font_sz, weight="bold"),
+                fg_color=_BTN_HIGHLIGHT if is_hl else fg,
+                hover_color=_BTN_HOVER,
+                text_color=_TXT_HIGHLIGHT if is_hl else _TXT_NORMAL,
+                corner_radius=6,
+                command=lambda nm=name: self._mark_spoken(nm),
+            )
+        btn.pack(side="left", padx=3, pady=3)
+
+    # ── Cache images redimensionnées ──────────────────────────
+
+    def _resize_ctk_image(self, name: str, size: int) -> ctk.CTkImage | None:
+        """
+        Retourne une CTkImage redimensionnée à `size`×`size` pour ce membre.
+        Utilise le cache et recharge depuis le TeamManager si nécessaire.
+        """
+        if self._team is None:
+            return None
+        member = self._team.get_member(name)
+        if member is None or member["icon_type"] != "image":
+            return None
+        img_path = self._team.get_icon_path(member)
+        if img_path is None:
+            return None
+        try:
+            pil_img = Image.open(img_path).convert("RGBA")
+            return ctk.CTkImage(pil_img, size=(size, size))
+        except Exception:
+            return None

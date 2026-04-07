@@ -54,6 +54,7 @@ class MainWindow(ctk.CTk):
             self._container,
             on_end_session=self._end_session,
             get_window=lambda: self,
+            team_manager=self._team,
         )
 
         # Toggle always-on-top (petit bouton en bas, caché en session)

@@ -2,11 +2,15 @@
 SetupView — Vue de sélection des participants présents au daily.
 
 Affiche tous les membres avec des checkboxes pour cocher qui est présent.
+Les icônes (emoji ou image) sont affichées à côté de chaque checkbox.
 """
 
 import customtkinter as ctk
+from PIL import Image
 
-from team_manager import TeamManager
+from team_manager import TeamManager, Member
+
+_ICON_SIZE = (20, 20)
 
 
 class SetupView(ctk.CTkFrame):
@@ -118,20 +122,52 @@ class SetupView(ctk.CTkFrame):
 
         self._start_btn.configure(state="normal")
 
-        for name in members:
+        for member in members:
+            name = member["name"]
             var = ctk.BooleanVar(value=True)  # coché par défaut
             var.trace_add("write", lambda *_: self._update_count())
             self._checkboxes[name] = var
 
+            # Ligne : icône + checkbox
+            row = ctk.CTkFrame(self._list_frame, fg_color="transparent")
+            row.pack(fill="x", pady=3, padx=5)
+
+            # Icône
+            icon_widget = self._make_icon_widget(row, member, size=_ICON_SIZE)
+            if icon_widget:
+                icon_widget.pack(side="left", padx=(0, 6))
+
             cb = ctk.CTkCheckBox(
-                self._list_frame,
+                row,
                 text=name,
                 variable=var,
                 font=ctk.CTkFont(size=13),
             )
-            cb.pack(fill="x", pady=3, padx=5)
+            cb.pack(side="left", fill="x", expand=True)
 
         self._update_count()
+
+    def _make_icon_widget(self, parent, member: Member, size=(20, 20)):
+        """Crée le widget d'icône approprié selon le type."""
+        if member["icon_type"] == "emoji" and member["icon_value"]:
+            return ctk.CTkLabel(
+                parent,
+                text=member["icon_value"],
+                font=ctk.CTkFont(size=size[0] - 2),
+                width=size[0],
+            )
+        elif member["icon_type"] == "image":
+            img_path = self._team.get_icon_path(member)
+            if img_path:
+                try:
+                    pil_img = Image.open(img_path).convert("RGBA")
+                    ctk_img = ctk.CTkImage(pil_img, size=size)
+                    lbl = ctk.CTkLabel(parent, image=ctk_img, text="", width=size[0])
+                    lbl._ctk_image_ref = ctk_img
+                    return lbl
+                except Exception:
+                    pass
+        return None
 
     def _check_all(self):
         for var in self._checkboxes.values():
