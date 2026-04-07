@@ -2,22 +2,53 @@
 
 import sys
 from pathlib import Path
+import customtkinter
 
-# Détecter le chemin Tcl/Tk
-tcl_root = None
-if sys.platform == 'win32':
-    import tkinter
-    tcl_root = Path(tkinter.Tcl().eval('info library')).parent
+# Chemin vers les assets customtkinter (fonts, thèmes JSON)
+ctk_path = Path(customtkinter.__file__).parent
 
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
     datas=[
-        (str(tcl_root / 'tcl8.6'), 'tcl') if tcl_root else None,
-        (str(tcl_root / 'tk8.6'), 'tk') if tcl_root else None,
-    ] if tcl_root else [],
-    hiddenimports=['PIL', 'PIL.Image', 'PIL.ImageTk', 'PIL.ImageFilter', 'PIL.ImageOps', 'tkinter'],
+        (str(ctk_path / 'assets'), 'customtkinter/assets'),
+    ],
+    hiddenimports=[
+        # Tkinter
+        'tkinter',
+        '_tkinter',
+        'tkinter.filedialog',
+        'tkinter.messagebox',
+        # Pillow — modules de base
+        'PIL',
+        'PIL.Image',
+        'PIL.ImageTk',
+        'PIL.ImageFile',
+        'PIL.ImageMode',
+        'PIL.ImagePalette',
+        'PIL.ImageOps',
+        'PIL.ImageFilter',
+        # Pillow — plugins format image (chargés dynamiquement à runtime)
+        'PIL.PngImagePlugin',
+        'PIL.JpegImagePlugin',
+        'PIL.BmpImagePlugin',
+        'PIL.GifImagePlugin',
+        'PIL.WebPImagePlugin',
+        'PIL.IcoImagePlugin',
+        # customtkinter
+        'customtkinter',
+        # darkdetect (dépendance customtkinter, sous-modules conditionnels par OS)
+        'darkdetect',
+        'darkdetect._linux_detect',
+        'darkdetect._windows_detect',
+        'darkdetect._mac_detect',
+        # packaging (utilisé par customtkinter pour comparer les versions)
+        'packaging',
+        'packaging.version',
+        # stdlib
+        'collections',
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

@@ -19,6 +19,7 @@ Nouvelles fonctionnalités :
 """
 
 import customtkinter as ctk
+from collections import Counter
 from PIL import Image
 
 from session import Session
@@ -72,7 +73,6 @@ def _dominant_color(img: Image.Image, darken: float = 0.55) -> str:
         if not palette:
             return _BTN_DEFAULT
         # Compter les pixels par couleur d'index
-        from collections import Counter
         try:
             pixels = list(quantized.get_flattened_data())
         except AttributeError:
