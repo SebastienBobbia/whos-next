@@ -17,10 +17,11 @@ datas = [
 ]
 
 # Inclure tcl8.6 et tk8.6 s'ils existent (Windows)
+# PyInstaller (_tkinter) cherche Tcl dans _tcl_data et Tk dans _tk_data
 if (tcl_root / 'tcl8.6').exists():
-    datas.append((str(tcl_root / 'tcl8.6'), 'tcl8.6'))
+    datas.append((str(tcl_root / 'tcl8.6'), '_tcl_data'))
 if (tcl_root / 'tk8.6').exists():
-    datas.append((str(tcl_root / 'tk8.6'), 'tk8.6'))
+    datas.append((str(tcl_root / 'tk8.6'), '_tk_data'))
 
 a = Analysis(
     ['main.py'],
