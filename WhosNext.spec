@@ -7,19 +7,12 @@ import customtkinter
 # ── Assets customtkinter (fonts, thèmes JSON) ─────────────────
 ctk_path = Path(customtkinter.__file__).parent
 
-# ── Tcl/Tk : chemin calculé dynamiquement depuis l'exe Python ─
-python_root = Path(sys.executable).parent
-tcl_root = python_root / 'tcl'
-
 datas = [
     (str(ctk_path / 'assets'), 'customtkinter/assets'),
 ]
 
-# Inclure tcl8.6 et tk8.6 dans _tcl_data/_tk_data (convention PyInstaller)
-if (tcl_root / 'tcl8.6').exists():
-    datas.append((str(tcl_root / 'tcl8.6'), '_tcl_data'))
-if (tcl_root / 'tk8.6').exists():
-    datas.append((str(tcl_root / 'tk8.6'), '_tk_data'))
+# NOTE: Tcl/Tk est géré automatiquement par le hook PyInstaller (hook-_tkinter.py)
+# Ne pas l'inclure manuellement ici pour éviter les conflits cross-platform.
 
 a = Analysis(
     ['main.py'],
