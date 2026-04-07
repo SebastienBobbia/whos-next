@@ -8,7 +8,6 @@ import customtkinter
 ctk_path = Path(customtkinter.__file__).parent
 
 # ── Tcl/Tk : chemin calculé dynamiquement depuis l'exe Python ─
-# Structure standard : <python_root>/tcl/tcl8.6  et  <python_root>/tcl/tk8.6
 python_root = Path(sys.executable).parent
 tcl_root = python_root / 'tcl'
 
@@ -16,8 +15,7 @@ datas = [
     (str(ctk_path / 'assets'), 'customtkinter/assets'),
 ]
 
-# Inclure tcl8.6 et tk8.6 s'ils existent (Windows)
-# PyInstaller (_tkinter) cherche Tcl dans _tcl_data et Tk dans _tk_data
+# Inclure tcl8.6 et tk8.6 dans _tcl_data/_tk_data (convention PyInstaller)
 if (tcl_root / 'tcl8.6').exists():
     datas.append((str(tcl_root / 'tcl8.6'), '_tcl_data'))
 if (tcl_root / 'tk8.6').exists():
@@ -65,7 +63,7 @@ a = Analysis(
     ],
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=['rthook_tcl.py'],
     excludes=[],
     noarchive=False,
     optimize=0,
