@@ -1,12 +1,23 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import sys
+from pathlib import Path
+
+# Détecter le chemin Tcl/Tk
+tcl_root = None
+if sys.platform == 'win32':
+    import tkinter
+    tcl_root = Path(tkinter.Tcl().eval('info library')).parent
 
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[],
-    hiddenimports=['PIL', 'PIL.Image', 'PIL.ImageTk', 'PIL.ImageFilter', 'PIL.ImageOps'],
+    datas=[
+        (str(tcl_root / 'tcl8.6'), 'tcl') if tcl_root else None,
+        (str(tcl_root / 'tk8.6'), 'tk') if tcl_root else None,
+    ] if tcl_root else [],
+    hiddenimports=['PIL', 'PIL.Image', 'PIL.ImageTk', 'PIL.ImageFilter', 'PIL.ImageOps', 'tkinter'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
