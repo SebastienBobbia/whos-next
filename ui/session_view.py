@@ -38,6 +38,7 @@ _BTN_ACTION = "#374151"
 _BTN_ACTION_HOV = "#4B5563"
 _BTN_END = "#7f1d1d"
 _BTN_END_HOV = "#DC2626"
+_BORDER_FLASH = "#FACC15"  # jaune vif pour le flash de bordure
 
 # Célébration : texte jaune sur fond noir
 _CELEBRATION_BG = "#000000"
@@ -132,6 +133,8 @@ class SessionView(ctk.CTkFrame):
         self._team: TeamManager | None = team_manager
         self._layout = self.VERTICAL
         self._highlighted: str | None = None
+        self._hl_widget = None  # widget de la tuile highlightée (pour le flash)
+        self._flash_job = None  # id du after() en cours
 
         # Cache : {name -> (CTkImage | None, dominant_color str)}
         self._icon_cache: dict[str, tuple] = {}
@@ -282,6 +285,38 @@ class SessionView(ctk.CTkFrame):
         if chosen:
             self._highlighted = chosen
             self._refresh()
+            self._get_window().after(50, lambda: self._flash_highlight(6))
+
+    def _flash_highlight(self, count: int):
+        """Fait clignoter la bordure de la tuile highlightée (count itérations)."""
+        # Annuler un flash en cours
+        if self._flash_job is not None:
+            self._get_window().after_cancel(self._flash_job)
+            self._flash_job = None
+
+        if self._hl_widget is None or count <= 0:
+            # Fin du flash : s'assurer que la bordure reste visible
+            if self._hl_widget is not None:
+                try:
+                    self._hl_widget.configure(
+                        border_width=2, border_color=_BORDER_FLASH
+                    )
+                except Exception:
+                    pass
+            return
+
+        # Alterner bordure visible / invisible
+        try:
+            if count % 2 == 0:
+                self._hl_widget.configure(border_width=3, border_color=_BORDER_FLASH)
+            else:
+                self._hl_widget.configure(border_width=0)
+        except Exception:
+            return
+
+        self._flash_job = self._get_window().after(
+            150, lambda: self._flash_highlight(count - 1)
+        )
 
     def _undo(self):
         if self._session is None:
@@ -482,6 +517,8 @@ class SessionView(ctk.CTkFrame):
                     command=lambda nm=name: self._mark_spoken(nm),
                 )
                 btn.pack(fill="x", pady=2, padx=2)
+                if is_hl:
+                    self._hl_widget = btn
 
     def _render_tile_icon_only(
         self, name, btn_h, available_w, ctk_img, emoji, fg, is_hl
@@ -530,6 +567,8 @@ class SessionView(ctk.CTkFrame):
                 command=lambda nm=name: self._mark_spoken(nm),
             )
         btn.pack(fill="x", pady=2, padx=2)
+        if is_hl:
+            self._hl_widget = btn
 
     def _render_tile_image_text_vertical(
         self, name, btn_h, available_w, font_size, img, fg, is_hl
@@ -543,6 +582,8 @@ class SessionView(ctk.CTkFrame):
         )
         wrapper.pack(fill="x", pady=2, padx=2)
         wrapper.pack_propagate(False)
+        if is_hl:
+            self._hl_widget = wrapper
 
         img_lbl = ctk.CTkLabel(
             wrapper,
@@ -582,6 +623,8 @@ class SessionView(ctk.CTkFrame):
         )
         wrapper.pack(fill="x", pady=2, padx=2)
         wrapper.pack_propagate(False)
+        if is_hl:
+            self._hl_widget = wrapper
 
         emoji_lbl = ctk.CTkLabel(
             wrapper,
@@ -693,6 +736,8 @@ class SessionView(ctk.CTkFrame):
                 )
                 name_lbl.place(relx=0.5, rely=0.5, anchor="center")
 
+                if is_hl:
+                    self._hl_widget = wrapper
                 for w in (wrapper, img_lbl, name_lbl):
                     w.bind("<Button-1>", lambda e, nm=name: self._mark_spoken(nm))
                     w.configure(cursor="hand2")
@@ -725,6 +770,8 @@ class SessionView(ctk.CTkFrame):
                     text_color=_TXT_HIGHLIGHT if is_hl else _TXT_NORMAL,
                 ).pack()
 
+                if is_hl:
+                    self._hl_widget = wrapper
                 for w in wrapper.winfo_children() + [wrapper]:
                     w.bind("<Button-1>", lambda e, nm=name: self._mark_spoken(nm))
                     w.configure(cursor="hand2")
@@ -744,6 +791,8 @@ class SessionView(ctk.CTkFrame):
                     command=lambda nm=name: self._mark_spoken(nm),
                 )
                 btn.pack(side="left", padx=3, pady=3)
+                if is_hl:
+                    self._hl_widget = btn
 
     def _render_h_tile_icon_only(
         self, parent, name, btn_w, btn_h, ctk_img, emoji, fg, is_hl
@@ -794,6 +843,8 @@ class SessionView(ctk.CTkFrame):
                 command=lambda nm=name: self._mark_spoken(nm),
             )
         btn.pack(side="left", padx=3, pady=3)
+        if is_hl:
+            self._hl_widget = btn
 
     # ── Cache images redimensionnées ──────────────────────────
 
