@@ -24,38 +24,42 @@ from PIL import Image
 
 from session import Session
 from team_manager import TeamManager, Member
+from ui.team_view import _open_image
 
 # ── Constantes de style ───────────────────────────────────────
-_BG             = "#1a1a2e"
-_BTN_DEFAULT    = "#2d2d44"
-_BTN_HOVER      = "#3d3d5c"
-_BTN_HIGHLIGHT  = "#1a5c2a"
-_TXT_HIGHLIGHT  = "#4ADE80"
-_TXT_NORMAL     = "#e0e0e0"
-_TXT_COUNTER    = "#9CA3AF"
-_BTN_ACTION     = "#374151"
+_BG = "#1a1a2e"
+_BTN_DEFAULT = "#2d2d44"
+_BTN_HOVER = "#3d3d5c"
+_BTN_HIGHLIGHT = "#1a5c2a"
+_TXT_HIGHLIGHT = "#4ADE80"
+_TXT_NORMAL = "#e0e0e0"
+_TXT_COUNTER = "#9CA3AF"
+_BTN_ACTION = "#374151"
 _BTN_ACTION_HOV = "#4B5563"
-_BTN_END        = "#7f1d1d"
-_BTN_END_HOV    = "#DC2626"
+_BTN_END = "#7f1d1d"
+_BTN_END_HOV = "#DC2626"
 
 # Célébration : texte jaune sur fond noir
-_CELEBRATION_BG  = "#000000"
+_CELEBRATION_BG = "#000000"
 _CELEBRATION_TXT = "#FFD600"
 
 # 4 boutons × 22px + 3 × 2px padding + 4px marges = ~98px minimum
-_TOP_BAR_H  = 26   # hauteur de la barre (bouton 22px + pady 2×2)
+_TOP_BAR_H = 26  # hauteur de la barre (bouton 22px + pady 2×2)
 _RESERVED_H = _TOP_BAR_H + 10
 
 # ── Seuils mode icône seule ───────────────────────────────────
 # En dessous de ces dimensions la tuile n'affiche que l'icône
-_ICON_ONLY_H = 48   # hauteur en vertical
-_ICON_ONLY_W = 70   # largeur en horizontal
+_ICON_ONLY_H = 48  # hauteur en vertical
+_ICON_ONLY_W = 70  # largeur en horizontal
 
 
-def _dominant_color(img: Image.Image, darken: float = 0.55) -> str:
+def _dominant_color(img: Image.Image, darken: float = 0.6) -> str:
     """
     Extrait la couleur dominante d'une image PIL et retourne un code hex CSS.
     La couleur est assombrie pour rester compatible avec le thème sombre.
+
+    Les pixels transparents (alpha < 128) sont ignorés pour ne pas biaiser
+    le résultat avec le fond des images PNG/RGBA.
 
     Args:
         img:     image PIL (RGB ou RGBA)
@@ -65,29 +69,44 @@ def _dominant_color(img: Image.Image, darken: float = 0.55) -> str:
         Couleur hex (#rrggbb) ou _BTN_DEFAULT si échec.
     """
     try:
-        # Réduire à une petite image pour la vitesse
-        small = img.convert("RGB").resize((64, 64), Image.LANCZOS)
+        # S'assurer d'avoir du RGBA pour accéder au canal alpha
+        rgba = img.convert("RGBA").resize((64, 64), Image.LANCZOS)
+
+        # Extraire uniquement les pixels suffisamment opaques
+        pixels_rgba = list(rgba.getdata())
+        opaque = [(r, g, b) for r, g, b, a in pixels_rgba if a >= 128]
+
+        if not opaque:
+            return _BTN_DEFAULT
+
+        # Construire une image RGB depuis les pixels opaques pour quantification
+        rgb_img = Image.new("RGB", (len(opaque), 1))
+        rgb_img.putdata(opaque)
+
         # Quantifier en N couleurs et prendre la plus fréquente
-        quantized = small.quantize(colors=8, method=Image.Quantize.MEDIANCUT)
+        quantized = rgb_img.quantize(colors=8, method=Image.Quantize.MEDIANCUT)
         palette = quantized.getpalette()  # flat list [r,g,b, r,g,b, ...]
         if not palette:
             return _BTN_DEFAULT
-        # Compter les pixels par couleur d'index
-        try:
-            pixels = list(quantized.get_flattened_data())
-        except AttributeError:
-            pixels = list(quantized.getdata())
-        counts = Counter(pixels)
+
+        counts = Counter(list(quantized.getdata()))
         dominant_idx = counts.most_common(1)[0][0]
-        r = int(palette[dominant_idx * 3]     * darken)
-        g = int(palette[dominant_idx * 3 + 1] * darken)
-        b = int(palette[dominant_idx * 3 + 2] * darken)
-        # Garantir que la couleur est suffisamment sombre (L < 160)
+        r = palette[dominant_idx * 3]
+        g = palette[dominant_idx * 3 + 1]
+        b = palette[dominant_idx * 3 + 2]
+
+        # Assombrir la couleur pour le thème sombre
+        r = int(r * darken)
+        g = int(g * darken)
+        b = int(b * darken)
+
+        # Garantir que la couleur est suffisamment sombre (luminance < 140)
         luminance = 0.299 * r + 0.587 * g + 0.114 * b
-        if luminance > 160:
-            r = int(r * 0.5)
-            g = int(g * 0.5)
-            b = int(b * 0.5)
+        if luminance > 140:
+            r = int(r * 0.6)
+            g = int(g * 0.6)
+            b = int(b * 0.6)
+
         return f"#{r:02x}{g:02x}{b:02x}"
     except Exception:
         return _BTN_DEFAULT
@@ -96,10 +115,16 @@ def _dominant_color(img: Image.Image, darken: float = 0.55) -> str:
 class SessionView(ctk.CTkFrame):
     """Vue principale pendant le déroulement du daily meeting."""
 
-    VERTICAL   = "vertical"
+    VERTICAL = "vertical"
     HORIZONTAL = "horizontal"
 
-    def __init__(self, parent, on_end_session, get_window, team_manager: TeamManager | None = None):
+    def __init__(
+        self,
+        parent,
+        on_end_session,
+        get_window,
+        team_manager: TeamManager | None = None,
+    ):
         super().__init__(parent, fg_color=_BG)
         self._session: Session | None = None
         self._on_end_session = on_end_session
@@ -128,32 +153,43 @@ class SessionView(ctk.CTkFrame):
         btn_opts = dict(width=22, height=22, corner_radius=4, border_width=0)
 
         self._layout_btn = ctk.CTkButton(
-            self._top, text="⇄",
+            self._top,
+            text="⇄",
             font=ctk.CTkFont(size=10),
-            fg_color=_BTN_ACTION, hover_color=_BTN_ACTION_HOV,
-            command=self._toggle_layout, **btn_opts,
+            fg_color=_BTN_ACTION,
+            hover_color=_BTN_ACTION_HOV,
+            command=self._toggle_layout,
+            **btn_opts,
         )
         self._random_btn = ctk.CTkButton(
-            self._top, text="🎲",
+            self._top,
+            text="🎲",
             font=ctk.CTkFont(size=10),
-            fg_color=_BTN_ACTION, hover_color="#1D4ED8",
-            command=self._pick_random, **btn_opts,
+            fg_color=_BTN_ACTION,
+            hover_color="#1D4ED8",
+            command=self._pick_random,
+            **btn_opts,
         )
         self._undo_btn = ctk.CTkButton(
-            self._top, text="↩",
+            self._top,
+            text="↩",
             font=ctk.CTkFont(size=11),
-            fg_color=_BTN_ACTION, hover_color=_BTN_ACTION_HOV,
-            command=self._undo, **btn_opts,
+            fg_color=_BTN_ACTION,
+            hover_color=_BTN_ACTION_HOV,
+            command=self._undo,
+            **btn_opts,
         )
         self._end_btn = ctk.CTkButton(
-            self._top, text="■",
+            self._top,
+            text="■",
             font=ctk.CTkFont(size=9),
-            fg_color=_BTN_END, hover_color=_BTN_END_HOV,
-            command=self._on_end_session, **btn_opts,
+            fg_color=_BTN_END,
+            hover_color=_BTN_END_HOV,
+            command=self._on_end_session,
+            **btn_opts,
         )
 
-        for btn in (self._layout_btn, self._random_btn,
-                    self._undo_btn, self._end_btn):
+        for btn in (self._layout_btn, self._random_btn, self._undo_btn, self._end_btn):
             btn.pack(side="left", padx=1, pady=1)
 
     def _place_buttons(self):
@@ -206,9 +242,11 @@ class SessionView(ctk.CTkFrame):
             img_path = self._team.get_icon_path(member)
             if img_path:
                 try:
-                    pil_img = Image.open(img_path).convert("RGBA")
+                    pil_img = _open_image(img_path)
                     dom = _dominant_color(pil_img)
-                    ctk_img = ctk.CTkImage(pil_img, size=(size, size))
+                    # Redimensionner en conservant les proportions (fit dans size×size)
+                    pil_img.thumbnail((size, size), Image.LANCZOS)
+                    ctk_img = ctk.CTkImage(pil_img, size=pil_img.size)
                     return ctk_img, dom
                 except Exception:
                     pass
@@ -278,7 +316,7 @@ class SessionView(ctk.CTkFrame):
             x = sw - w
             y = 0
             win.geometry(f"{w}x{h}+{x}+{y}")
-        else:               # HORIZONTAL
+        else:  # HORIZONTAL
             w = sw
             h = max(60, int(sh * 0.05))
             x = 0
@@ -294,7 +332,7 @@ class SessionView(ctk.CTkFrame):
         if self._session is None:
             return
 
-        remaining  = self._session.remaining
+        remaining = self._session.remaining
         spoken_cnt = self._session.spoken_count
 
         # Vider la zone des prénoms
@@ -348,7 +386,7 @@ class SessionView(ctk.CTkFrame):
         label.pack(expand=True)
 
         _colors = [_CELEBRATION_TXT, "#997F00"]
-        _state  = {"step": 0, "running": True}
+        _state = {"step": 0, "running": True}
 
         def _pulse():
             if not _state["running"]:
@@ -386,15 +424,15 @@ class SessionView(ctk.CTkFrame):
         if available_w < 10:
             available_w = self._get_window().winfo_width()
 
-        pad_total  = 4 * n
-        btn_h      = max(24, (available_h - pad_total) // n)
-        font_size  = max(9, min(btn_h // 2, available_w // 6))
+        pad_total = 4 * n
+        btn_h = max(24, (available_h - pad_total) // n)
+        font_size = max(9, min(btn_h // 2, available_w // 6))
 
         # Mode icône seule si tuile trop petite
         icon_only = btn_h < _ICON_ONLY_H
 
         for name in remaining:
-            is_hl = (name == self._highlighted)
+            is_hl = name == self._highlighted
             ctk_img, emoji, dom_color = self._get_icon_info(name)
 
             # Couleur de fond : highlight > couleur dominante > défaut
@@ -445,8 +483,9 @@ class SessionView(ctk.CTkFrame):
                 )
                 btn.pack(fill="x", pady=2, padx=2)
 
-    def _render_tile_icon_only(self, name, btn_h, available_w,
-                                ctk_img, emoji, fg, is_hl):
+    def _render_tile_icon_only(
+        self, name, btn_h, available_w, ctk_img, emoji, fg, is_hl
+    ):
         """Tuile en mode icône seule (compact)."""
         icon_sz = max(12, btn_h - 8)
         img = self._resize_ctk_image(name, icon_sz) if ctk_img is not None else None
@@ -492,8 +531,9 @@ class SessionView(ctk.CTkFrame):
             )
         btn.pack(fill="x", pady=2, padx=2)
 
-    def _render_tile_image_text_vertical(self, name, btn_h, available_w,
-                                          font_size, img, fg, is_hl):
+    def _render_tile_image_text_vertical(
+        self, name, btn_h, available_w, font_size, img, fg, is_hl
+    ):
         """Tuile image + texte en mode vertical."""
         btn = ctk.CTkButton(
             self._names_outer,
@@ -514,8 +554,9 @@ class SessionView(ctk.CTkFrame):
         )
         btn.pack(fill="x", pady=2, padx=2)
 
-    def _render_tile_emoji_text_vertical(self, name, btn_h, available_w,
-                                          font_size, emoji, fg, is_hl):
+    def _render_tile_emoji_text_vertical(
+        self, name, btn_h, available_w, font_size, emoji, fg, is_hl
+    ):
         """Tuile emoji + texte : emoji dans un label + bouton texte côte à côte."""
         wrapper = ctk.CTkFrame(
             self._names_outer,
@@ -588,7 +629,7 @@ class SessionView(ctk.CTkFrame):
         wrap.pack(fill="both", expand=True)
 
         for name in remaining:
-            is_hl = (name == self._highlighted)
+            is_hl = name == self._highlighted
             ctk_img, emoji, dom_color = self._get_icon_info(name)
 
             if is_hl:
@@ -612,7 +653,9 @@ class SessionView(ctk.CTkFrame):
                     compound="top",
                     width=btn_w,
                     height=btn_h,
-                    font=ctk.CTkFont(size=font_size, weight="bold" if is_hl else "normal"),
+                    font=ctk.CTkFont(
+                        size=font_size, weight="bold" if is_hl else "normal"
+                    ),
                     fg_color=fg,
                     hover_color=_BTN_HOVER,
                     text_color=_TXT_HIGHLIGHT if is_hl else _TXT_NORMAL,
@@ -642,8 +685,9 @@ class SessionView(ctk.CTkFrame):
                 ctk.CTkLabel(
                     wrapper,
                     text=name,
-                    font=ctk.CTkFont(size=max(8, font_size - 2),
-                                     weight="bold" if is_hl else "normal"),
+                    font=ctk.CTkFont(
+                        size=max(8, font_size - 2), weight="bold" if is_hl else "normal"
+                    ),
                     fg_color="transparent",
                     text_color=_TXT_HIGHLIGHT if is_hl else _TXT_NORMAL,
                 ).pack()
@@ -657,7 +701,9 @@ class SessionView(ctk.CTkFrame):
                     text=name,
                     width=btn_w,
                     height=btn_h,
-                    font=ctk.CTkFont(size=font_size, weight="bold" if is_hl else "normal"),
+                    font=ctk.CTkFont(
+                        size=font_size, weight="bold" if is_hl else "normal"
+                    ),
                     fg_color=fg,
                     hover_color=_BTN_HOVER,
                     text_color=_TXT_HIGHLIGHT if is_hl else _TXT_NORMAL,
@@ -666,8 +712,9 @@ class SessionView(ctk.CTkFrame):
                 )
                 btn.pack(side="left", padx=3, pady=3)
 
-    def _render_h_tile_icon_only(self, parent, name, btn_w, btn_h,
-                                   ctk_img, emoji, fg, is_hl):
+    def _render_h_tile_icon_only(
+        self, parent, name, btn_w, btn_h, ctk_img, emoji, fg, is_hl
+    ):
         """Tuile en mode icône seule (horizontal compact)."""
         icon_sz = max(12, min(btn_h - 8, btn_w - 8))
         img = self._resize_ctk_image(name, icon_sz) if ctk_img is not None else None
@@ -721,6 +768,7 @@ class SessionView(ctk.CTkFrame):
         """
         Retourne une CTkImage redimensionnée à `size`×`size` pour ce membre.
         Utilise le cache et recharge depuis le TeamManager si nécessaire.
+        Le redimensionnement conserve les proportions (fit, pas de crop).
         """
         if self._team is None:
             return None
@@ -731,7 +779,9 @@ class SessionView(ctk.CTkFrame):
         if img_path is None:
             return None
         try:
-            pil_img = Image.open(img_path).convert("RGBA")
-            return ctk.CTkImage(pil_img, size=(size, size))
+            pil_img = _open_image(img_path)
+            # Redimensionner en conservant les proportions (fit dans size×size)
+            pil_img.thumbnail((size, size), Image.LANCZOS)
+            return ctk.CTkImage(pil_img, size=pil_img.size)
         except Exception:
             return None

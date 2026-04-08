@@ -16,27 +16,83 @@ import customtkinter as ctk
 # ── Palette d'emojis proposés ─────────────────────────────────
 EMOJI_GRID = [
     # Visages
-    "😀", "😎", "🤓", "😍", "🤩", "😜", "🥸", "🧐",
-    "😇", "🤠", "🥳", "😈", "👻", "🤖", "👽", "🎃",
+    "😀",
+    "😎",
+    "🤓",
+    "😍",
+    "🤩",
+    "😜",
+    "🥸",
+    "🧐",
+    "😇",
+    "🤠",
+    "🥳",
+    "😈",
+    "👻",
+    "🤖",
+    "👽",
+    "🎃",
     # Animaux
-    "🐱", "🐶", "🦊", "🐻", "🐼", "🐨", "🐯", "🦁",
-    "🐸", "🐵", "🦄", "🐲", "🦋", "🐧", "🦉", "🦅",
+    "🐱",
+    "🐶",
+    "🦊",
+    "🐻",
+    "🐼",
+    "🐨",
+    "🐯",
+    "🦁",
+    "🐸",
+    "🐵",
+    "🦄",
+    "🐲",
+    "🦋",
+    "🐧",
+    "🦉",
+    "🦅",
     # Professions / objets
-    "👨‍💻", "👩‍💻", "🧑‍🚀", "👨‍🎨", "👩‍🔬", "🧑‍🍳", "👨‍🎤", "🧑‍🏫",
-    "⚡", "🔥", "💎", "🌟", "🎯", "🚀", "🎸", "🎮",
+    "👨‍💻",
+    "👩‍💻",
+    "🧑‍🚀",
+    "👨‍🎨",
+    "👩‍🔬",
+    "🧑‍🍳",
+    "👨‍🎤",
+    "🧑‍🏫",
+    "⚡",
+    "🔥",
+    "💎",
+    "🌟",
+    "🎯",
+    "🚀",
+    "🎸",
+    "🎮",
     # Nature
-    "🌈", "☀️",  "🌙", "⭐", "❄️",  "🌊", "🌸", "🍀",
+    "🌈",
+    "☀️",
+    "🌙",
+    "⭐",
+    "❄️",
+    "🌊",
+    "🌸",
+    "🍀",
     # Divers
-    "❤️",  "💙", "💜", "🖤", "🤍", "💛", "🧡", "💚",
+    "❤️",
+    "💙",
+    "💜",
+    "🖤",
+    "🤍",
+    "💛",
+    "🧡",
+    "💚",
 ]
 
-_BG_DARK    = "#1e1e2e"
-_BG_CARD    = "#2d2d44"
-_BG_HOVER   = "#3d3d5c"
-_BG_SEL     = "#1a5c2a"
+_BG_DARK = "#1e1e2e"
+_BG_CARD = "#2d2d44"
+_BG_HOVER = "#3d3d5c"
+_BG_SEL = "#1a5c2a"
 _BORDER_SEL = "#4ADE80"
-_TXT        = "#e0e0e0"
-_TXT_GRAY   = "#9CA3AF"
+_TXT = "#e0e0e0"
+_TXT_GRAY = "#9CA3AF"
 
 
 class IconPickerDialog(ctk.CTkToplevel):
@@ -60,7 +116,7 @@ class IconPickerDialog(ctk.CTkToplevel):
         super().__init__(parent)
         self.title(title)
         self.resizable(False, False)
-        self.grab_set()        # modal
+        self.grab_set()  # modal
         self.focus_set()
 
         self.result: tuple[str, str] | None = None
@@ -109,7 +165,7 @@ class IconPickerDialog(ctk.CTkToplevel):
         for idx, emoji in enumerate(EMOJI_GRID):
             row = idx // COLS
             col = idx % COLS
-            is_sel = (emoji == self._selected_emoji)
+            is_sel = emoji == self._selected_emoji
             btn = ctk.CTkButton(
                 grid_outer,
                 text=emoji,
@@ -217,7 +273,7 @@ class IconPickerDialog(ctk.CTkToplevel):
         path = filedialog.askopenfilename(
             title="Choisir une image",
             filetypes=[
-                ("Images", "*.png *.jpg *.jpeg *.gif *.bmp *.webp"),
+                ("Images", "*.png *.jpg *.jpeg *.gif *.bmp *.webp *.svg"),
                 ("Tous les fichiers", "*.*"),
             ],
         )

@@ -7,11 +7,30 @@ Fonctionnalités :
   - Réordonner les membres par glisser-déplacer (maintien + glisser)
 """
 
+import io
+
 import customtkinter as ctk
 from PIL import Image
 
 from team_manager import TeamManager, Member
 from ui.icon_picker import IconPickerDialog
+
+
+def _open_image(path: str) -> Image.Image:
+    """Ouvre une image depuis un chemin, avec support SVG via cairosvg.
+
+    Retourne une image PIL RGBA, ou lève une exception si le chargement échoue.
+    """
+    if str(path).lower().endswith(".svg"):
+        try:
+            import cairosvg
+
+            png_bytes = cairosvg.svg2png(url=str(path))
+            return Image.open(io.BytesIO(png_bytes)).convert("RGBA")
+        except Exception as e:
+            raise RuntimeError(f"Impossible de convertir le SVG : {e}") from e
+    return Image.open(path).convert("RGBA")
+
 
 # Taille de l'icône dans la liste
 _ICON_SIZE = (24, 24)
@@ -238,8 +257,10 @@ class TeamView(ctk.CTkFrame):
             img_path = self._team.get_icon_path(member)
             if img_path:
                 try:
-                    pil_img = Image.open(img_path).convert("RGBA")
-                    ctk_img = ctk.CTkImage(pil_img, size=size)
+                    pil_img = _open_image(img_path)
+                    # Redimensionner en conservant les proportions (fit dans size)
+                    pil_img.thumbnail(size, Image.LANCZOS)
+                    ctk_img = ctk.CTkImage(pil_img, size=pil_img.size)
                     lbl = ctk.CTkLabel(parent, image=ctk_img, text="", width=size[0])
                     lbl._ctk_image_ref = ctk_img  # garder une référence
                     return lbl
