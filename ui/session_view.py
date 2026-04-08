@@ -446,7 +446,7 @@ class SessionView(ctk.CTkFrame):
             # Préparer l'image redimensionnée selon la hauteur de tuile
             img_for_btn = None
             if not icon_only and ctk_img is not None:
-                icon_sz = max(12, btn_h // 3)
+                icon_sz = max(12, btn_h // 4)
                 img_for_btn = self._resize_ctk_image(name, icon_sz)
 
             if icon_only:
@@ -549,8 +549,10 @@ class SessionView(ctk.CTkFrame):
             text="",
             image=img,
             fg_color="transparent",
+            padx=0,
+            pady=0,
         )
-        img_lbl.place(x=4, y=4, anchor="nw")
+        img_lbl.place(x=2, y=0, anchor="nw")
 
         name_lbl = ctk.CTkLabel(
             wrapper,
@@ -658,7 +660,7 @@ class SessionView(ctk.CTkFrame):
                     wrap, name, btn_w, btn_h, ctk_img, emoji, fg, is_hl
                 )
             elif ctk_img is not None:
-                icon_sz = max(12, min(btn_w, btn_h) // 3)
+                icon_sz = max(12, min(btn_w, btn_h) // 4)
                 img = self._resize_ctk_image(name, icon_sz)
                 wrapper = ctk.CTkFrame(
                     wrap,
@@ -675,8 +677,10 @@ class SessionView(ctk.CTkFrame):
                     text="",
                     image=img,
                     fg_color="transparent",
+                    padx=0,
+                    pady=0,
                 )
-                img_lbl.place(x=4, y=4, anchor="nw")
+                img_lbl.place(x=2, y=0, anchor="nw")
 
                 name_lbl = ctk.CTkLabel(
                     wrapper,
