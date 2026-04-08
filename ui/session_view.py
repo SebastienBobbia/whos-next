@@ -446,7 +446,7 @@ class SessionView(ctk.CTkFrame):
             # Préparer l'image redimensionnée selon la hauteur de tuile
             img_for_btn = None
             if not icon_only and ctk_img is not None:
-                icon_sz = max(16, min(btn_h - 16, 40))
+                icon_sz = max(12, btn_h // 3)
                 img_for_btn = self._resize_ctk_image(name, icon_sz)
 
             if icon_only:
@@ -534,25 +534,39 @@ class SessionView(ctk.CTkFrame):
     def _render_tile_image_text_vertical(
         self, name, btn_h, available_w, font_size, img, fg, is_hl
     ):
-        """Tuile image + texte en mode vertical."""
-        btn = ctk.CTkButton(
+        """Tuile image + texte en mode vertical : image coin supérieur gauche."""
+        wrapper = ctk.CTkFrame(
             self._names_outer,
-            text=name,
-            image=img,
-            compound="left",
             height=btn_h,
+            fg_color=_BTN_HIGHLIGHT if is_hl else fg,
+            corner_radius=6,
+        )
+        wrapper.pack(fill="x", pady=2, padx=2)
+        wrapper.pack_propagate(False)
+
+        img_lbl = ctk.CTkLabel(
+            wrapper,
+            text="",
+            image=img,
+            fg_color="transparent",
+        )
+        img_lbl.place(x=4, y=4, anchor="nw")
+
+        name_lbl = ctk.CTkLabel(
+            wrapper,
+            text=name,
             font=ctk.CTkFont(
                 size=font_size,
                 weight="bold" if is_hl else "normal",
             ),
-            fg_color=_BTN_HIGHLIGHT if is_hl else fg,
-            hover_color=_BTN_HOVER,
+            fg_color="transparent",
             text_color=_TXT_HIGHLIGHT if is_hl else _TXT_NORMAL,
-            anchor="center",
-            corner_radius=6,
-            command=lambda nm=name: self._mark_spoken(nm),
         )
-        btn.pack(fill="x", pady=2, padx=2)
+        name_lbl.place(relx=0.5, rely=0.5, anchor="center")
+
+        for w in (wrapper, img_lbl, name_lbl):
+            w.bind("<Button-1>", lambda e, nm=name: self._mark_spoken(nm))
+            w.configure(cursor="hand2")
 
     def _render_tile_emoji_text_vertical(
         self, name, btn_h, available_w, font_size, emoji, fg, is_hl
@@ -644,25 +658,40 @@ class SessionView(ctk.CTkFrame):
                     wrap, name, btn_w, btn_h, ctk_img, emoji, fg, is_hl
                 )
             elif ctk_img is not None:
-                icon_sz = max(16, min(btn_h - 16, 40))
+                icon_sz = max(12, min(btn_w, btn_h) // 3)
                 img = self._resize_ctk_image(name, icon_sz)
-                btn = ctk.CTkButton(
+                wrapper = ctk.CTkFrame(
                     wrap,
-                    text=name,
-                    image=img,
-                    compound="top",
                     width=btn_w,
                     height=btn_h,
+                    fg_color=fg,
+                    corner_radius=6,
+                )
+                wrapper.pack(side="left", padx=3, pady=3)
+                wrapper.pack_propagate(False)
+
+                img_lbl = ctk.CTkLabel(
+                    wrapper,
+                    text="",
+                    image=img,
+                    fg_color="transparent",
+                )
+                img_lbl.place(x=4, y=4, anchor="nw")
+
+                name_lbl = ctk.CTkLabel(
+                    wrapper,
+                    text=name,
                     font=ctk.CTkFont(
                         size=font_size, weight="bold" if is_hl else "normal"
                     ),
-                    fg_color=fg,
-                    hover_color=_BTN_HOVER,
+                    fg_color="transparent",
                     text_color=_TXT_HIGHLIGHT if is_hl else _TXT_NORMAL,
-                    corner_radius=6,
-                    command=lambda nm=name: self._mark_spoken(nm),
                 )
-                btn.pack(side="left", padx=3, pady=3)
+                name_lbl.place(relx=0.5, rely=0.5, anchor="center")
+
+                for w in (wrapper, img_lbl, name_lbl):
+                    w.bind("<Button-1>", lambda e, nm=name: self._mark_spoken(nm))
+                    w.configure(cursor="hand2")
             elif emoji:
                 # Frame wrapper avec emoji au-dessus du nom
                 wrapper = ctk.CTkFrame(
