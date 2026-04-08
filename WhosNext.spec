@@ -3,7 +3,6 @@
 import sys
 from pathlib import Path
 import customtkinter
-from PyInstaller.utils.hooks import collect_data_files
 
 # ── Assets customtkinter (fonts, thèmes JSON) ─────────────────
 ctk_path = Path(customtkinter.__file__).parent
@@ -11,9 +10,6 @@ ctk_path = Path(customtkinter.__file__).parent
 datas = [
     (str(ctk_path / 'assets'), 'customtkinter/assets'),
 ]
-
-# Ajouter tous les fichiers de données collectés par le hook customtkinter automatiquement
-datas.extend(collect_data_files('customtkinter'))
 
 a = Analysis(
     ['main.py'],

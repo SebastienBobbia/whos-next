@@ -154,7 +154,7 @@ class TeamView(ctk.CTkFrame):
             empty_label.pack(pady=20)
             self._drag_hint.pack_forget()
         else:
-            self._drag_hint.pack(pady=(0, 2), before=self._list_frame)
+            self._drag_hint.pack(pady=(0, 2), after=self._error_label)
             for i, member in enumerate(members):
                 self._build_member_row(i, member)
 
@@ -221,12 +221,9 @@ class TeamView(ctk.CTkFrame):
 
         # ── Bindings drag & drop ──────────────────────────────
         for widget in (row, handle, label):
-            widget.bind("<ButtonPress-1>",
-                        lambda e, i=index: self._drag_start(e, i))
-            widget.bind("<B1-Motion>",
-                        lambda e, i=index: self._drag_motion(e, i))
-            widget.bind("<ButtonRelease-1>",
-                        lambda e: self._drag_end(e))
+            widget.bind("<ButtonPress-1>", lambda e, i=index: self._drag_start(e, i))
+            widget.bind("<B1-Motion>", lambda e, i=index: self._drag_motion(e, i))
+            widget.bind("<ButtonRelease-1>", lambda e: self._drag_end(e))
 
     def _make_icon_widget(self, parent, member: Member, size=(24, 24)):
         """Crée le widget d'icône approprié selon le type."""
@@ -313,8 +310,7 @@ class TeamView(ctk.CTkFrame):
     def _get_row_widgets(self) -> list[ctk.CTkFrame]:
         """Retourne les widgets ligne (CTkFrame) dans l'ordre d'affichage."""
         return [
-            w for w in self._list_frame.winfo_children()
-            if isinstance(w, ctk.CTkFrame)
+            w for w in self._list_frame.winfo_children() if isinstance(w, ctk.CTkFrame)
         ]
 
     def _compute_drop_index(self, y_root: int, rows: list) -> int | None:
