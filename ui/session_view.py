@@ -594,6 +594,7 @@ class SessionView(ctk.CTkFrame):
             pady=0,
         )
         img_lbl.place(x=2, y=0, anchor="nw")
+        img_lbl.lift()  # Garder l'image au premier plan par-dessus la bordure
 
         name_lbl = ctk.CTkLabel(
             wrapper,
@@ -724,6 +725,7 @@ class SessionView(ctk.CTkFrame):
                     pady=0,
                 )
                 img_lbl.place(x=2, y=0, anchor="nw")
+                img_lbl.lift()  # Garder l'image au premier plan par-dessus la bordure
 
                 name_lbl = ctk.CTkLabel(
                     wrapper,
