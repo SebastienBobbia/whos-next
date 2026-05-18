@@ -1,0 +1,95 @@
+{
+  "version": 2,
+  "members": [
+    {
+      "name": "Adeline",
+      "icon_type": "image",
+      "icon_value": "ape-converti-depuis-svg.png"
+    },
+    {
+      "name": "Agnès",
+      "icon_type": "image",
+      "icon_value": "abo-removebg-preview.png"
+    },
+    {
+      "name": "Amandine",
+      "icon_type": "image",
+      "icon_value": "aro.png"
+    },
+    {
+      "name": "Camille",
+      "icon_type": "image",
+      "icon_value": "czh.png"
+    },
+    {
+      "name": "Clémence",
+      "icon_type": "image",
+      "icon_value": "cdu-removebg-preview.png"
+    },
+    {
+      "name": "Julien Bl.",
+      "icon_type": "image",
+      "icon_value": "jbl-removebg-preview.png"
+    },
+    {
+      "name": "Julien Br.",
+      "icon_type": "image",
+      "icon_value": "jbr-converti-depuis-svg.png"
+    },
+    {
+      "name": "Loïc",
+      "icon_type": "image",
+      "icon_value": "ljo.png"
+    },
+    {
+      "name": "Mailys",
+      "icon_type": "image",
+      "icon_value": "mle-removebg-preview.png"
+    },
+    {
+      "name": "Marion",
+      "icon_type": "image",
+      "icon_value": "mbo-converti-depuis-svg.png"
+    },
+    {
+      "name": "Nicolas",
+      "icon_type": "image",
+      "icon_value": "npo2-removebg-preview.png"
+    },
+    {
+      "name": "PIerre-Yves",
+      "icon_type": "image",
+      "icon_value": "pbi-removebg-preview.png"
+    },
+    {
+      "name": "Quentin",
+      "icon_type": "image",
+      "icon_value": "qro-removebg-preview.png"
+    },
+    {
+      "name": "Renaud",
+      "icon_type": "image",
+      "icon_value": "rdi.png"
+    },
+    {
+      "name": "Samir",
+      "icon_type": "image",
+      "icon_value": "sda-converti-depuis-svg.png"
+    },
+    {
+      "name": "Sébastien",
+      "icon_type": "image",
+      "icon_value": "sbo.png"
+    },
+    {
+      "name": "Valentin",
+      "icon_type": "image",
+      "icon_value": "vpe-removebg-preview.png"
+    },
+    {
+      "name": "Yoann",
+      "icon_type": "image",
+      "icon_value": "yle-removebg-preview.png"
+    }
+  ]
+}

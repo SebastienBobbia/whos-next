@@ -9,6 +9,7 @@ ctk_path = Path(customtkinter.__file__).parent
 
 datas = [
     (str(ctk_path / 'assets'), 'customtkinter/assets'),
+    ('default_data', 'default_data'),
 ]
 
 a = Analysis(

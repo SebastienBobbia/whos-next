@@ -66,6 +66,19 @@ class TeamManager:
                 return Path(appdata) / "WhosNext"
         return Path.home() / ".whonext"
 
+    @staticmethod
+    def _get_bundled_data_dir() -> Path | None:
+        """Retourne le chemin vers les données embarquées (default_data/) si disponible."""
+        # PyInstaller extrait les datas dans _MEIPASS
+        if getattr(sys, "frozen", False):
+            base = Path(sys._MEIPASS)  # type: ignore[attr-defined]
+        else:
+            base = Path(__file__).parent
+        bundled = base / "default_data"
+        if bundled.exists():
+            return bundled
+        return None
+
     # ── Public API ────────────────────────────────────────────
 
     @property
@@ -174,10 +187,16 @@ class TeamManager:
     # ── Persistance ───────────────────────────────────────────
 
     def _load(self) -> None:
-        """Charge la liste depuis le fichier JSON (avec migration v1→v2)."""
+        """Charge la liste depuis le fichier JSON (avec migration v1→v2).
+        
+        Si aucun fichier local n'existe, copie les données embarquées
+        (default_data/) pour initialiser l'équipe au premier lancement.
+        """
         if not self._file.exists():
-            self._members = []
-            return
+            self._seed_from_bundled()
+            if not self._file.exists():
+                self._members = []
+                return
         try:
             with open(self._file, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -221,6 +240,20 @@ class TeamManager:
                 ensure_ascii=False,
                 indent=2,
             )
+
+    def _seed_from_bundled(self) -> None:
+        """Copie les données embarquées (team.json + icons/) vers le dossier local."""
+        bundled = self._get_bundled_data_dir()
+        if bundled is None:
+            return
+        bundled_json = bundled / "team.json"
+        if bundled_json.exists():
+            shutil.copy2(bundled_json, self._file)
+        bundled_icons = bundled / "icons"
+        if bundled_icons.exists():
+            for icon_file in bundled_icons.iterdir():
+                if icon_file.is_file():
+                    shutil.copy2(icon_file, self._icons_dir / icon_file.name)
 
     # ── Gestion fichiers icônes ───────────────────────────────
 

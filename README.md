@@ -33,10 +33,26 @@ python main.py
 
 ```bash
 pip install pyinstaller
-pyinstaller --onefile --windowed --name "WhosNext" main.py
+pyinstaller WhosNext.spec --noconfirm
 ```
 
 L'exécutable sera dans le dossier `dist/`.
+
+## Données d'équipe embarquées
+
+L'exe embarque les prénoms et images de l'équipe (dossier `default_data/`).
+Au premier lancement sur un nouveau poste, ces données sont automatiquement copiées
+dans `%APPDATA%\WhosNext\`. Les modifications ultérieures sont locales.
+
+**Pour mettre à jour l'équipe dans l'exe :**
+
+1. Modifier `default_data/team.json` (ajouter/supprimer un membre)
+2. Ajouter/remplacer les images dans `default_data/icons/`
+3. Rebuilder : `pyinstaller WhosNext.spec --noconfirm`
+4. Distribuer le nouveau `dist/WhosNext.exe`
+
+> Les collègues qui ont déjà lancé l'app conservent leurs données locales.
+> Pour forcer un reset : supprimer `%APPDATA%\WhosNext\` avant de relancer.
 
 ## Structure du projet
 
@@ -51,8 +67,10 @@ whos-next/
 │   ├── team_view.py     # Vue gestion d'équipe
 │   ├── setup_view.py    # Vue sélection des présents
 │   └── session_view.py  # Vue live du meeting
-├── data/
-│   └── team.json        # Données locales (gitignored)
+├── default_data/        # Données embarquées dans l'exe
+│   ├── team.json        # Liste des membres + icônes
+│   └── icons/           # Images des membres
 ├── requirements.txt
+├── WhosNext.spec        # Config PyInstaller
 └── .gitignore
 ```
