@@ -7,6 +7,8 @@ Gère la navigation entre les 3 vues :
   3. SessionView  — session live du daily
 """
 
+import os
+import sys
 import customtkinter as ctk
 
 from team_manager import TeamManager
@@ -26,6 +28,11 @@ class MainWindow(ctk.CTk):
         self.geometry("420x550")
         self.minsize(120, 150)
         self.attributes("-topmost", True)  # always-on-top
+
+        # Icône de la fenêtre (barre des tâches + coin gauche)
+        ico_path = self._get_asset_path("assets/logo.ico")
+        if os.path.exists(ico_path):
+            self.iconbitmap(ico_path)
 
         # Thème sombre
         ctk.set_appearance_mode("dark")
@@ -116,6 +123,15 @@ class MainWindow(ctk.CTk):
         self._show_team()
 
     # ── Utilitaires ───────────────────────────────────────────
+
+    @staticmethod
+    def _get_asset_path(relative_path: str) -> str:
+        """Résout le chemin d'un asset que ce soit en dev ou dans l'exe PyInstaller."""
+        if getattr(sys, "frozen", False):
+            base = sys._MEIPASS  # type: ignore[attr-defined]
+        else:
+            base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        return os.path.join(base, relative_path)
 
     def _toggle_topmost(self):
         """Bascule le mode always-on-top."""

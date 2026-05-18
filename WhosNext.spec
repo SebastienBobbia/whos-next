@@ -10,6 +10,7 @@ ctk_path = Path(customtkinter.__file__).parent
 datas = [
     (str(ctk_path / 'assets'), 'customtkinter/assets'),
     ('default_data', 'default_data'),
+    ('assets', 'assets'),
 ]
 
 a = Analysis(
@@ -78,6 +79,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon='assets/logo.ico',
 )
 
 # Mode one-folder : crée dist/WhosNext/ avec WhosNext.exe + tous les fichiers
