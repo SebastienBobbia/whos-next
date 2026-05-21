@@ -45,9 +45,7 @@ a = Analysis(
         'webencodings',
         'customtkinter',
         'darkdetect',
-        'darkdetect._linux_detect',
         'darkdetect._windows_detect',
-        'darkdetect._mac_detect',
         'packaging',
         'packaging.version',
         'collections',
@@ -55,9 +53,30 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=[
+        # Modules inutiles sur Windows (réduisent le nombre de fichiers)
+        'darkdetect._linux_detect',
+        'darkdetect._mac_detect',
+        'setuptools',
+        # distutils est requis par setuptools — ne pas exclure
+        # ast est requis par inspect — ne pas exclure
+
+        'py_compile',
+        'compileall',
+        'zipimport',
+        'tarfile',
+        'csv',
+        'calendar',
+        'curses',
+        'readline',
+        'rlcompleter',
+        'antigravity',
+        'this',
+        'turtle',
+        'turtledemo',
+    ],
     noarchive=False,
-    optimize=0,
+    optimize=1,
 )
 pyz = PYZ(a.pure)
 
@@ -70,7 +89,7 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,          # UPX désactivé : décompression = lenteur au démarrage
     upx_exclude=[],
     runtime_tmpdir=None,
     console=False,
@@ -88,7 +107,7 @@ coll = COLLECT(
     a.binaries,
     a.datas,
     strip=False,
-    upx=True,
+    upx=False,          # UPX désactivé sur les DLLs aussi
     upx_exclude=[],
     name='WhosNext',
 )
