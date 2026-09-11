@@ -21,6 +21,15 @@ serde_json = "1"
 include_dir = "0.7"
 # Horodatage local du fichier team.json mis de côté (PE-07)
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
+# Sélecteur de fichier image (IC-05)
+tauri-plugin-dialog = "2"
+
+[target.'cfg(windows)'.dependencies]
+# Zone de travail de l'écran courant, barre des tâches exclue (FE-07)
+windows-sys = { version = "0.60", features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+] }
 
 # Voir https://tauri.app/concept/size/#cargo-configuration
 [profile.release]

@@ -1,4 +1,5 @@
 mod store;
+mod window;
 
 use store::Member;
 
@@ -30,12 +31,18 @@ fn read_icon(filename: String) -> Result<String, String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             load_team,
             save_team,
             import_icon,
             remove_icon,
-            read_icon
+            read_icon,
+            window::monitor_work_area,
+            window::fit_to_right_edge,
+            window::restore_window,
+            window::set_always_on_top,
+            window::quit_app
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
