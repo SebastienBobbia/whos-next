@@ -1,0 +1,51 @@
+name: Release
+
+# Construit WhosNext.exe sur un runner Windows (DI-09).
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Vérifier le typage
+        run: npm run check
+
+      - name: Tests TypeScript
+        run: npm test
+
+      - name: Tests Rust
+        run: cargo test --manifest-path src-tauri/Cargo.toml --lib
+
+      - name: Construire l'exécutable
+        run: npm run tauri build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WhosNext
+          path: src-tauri/target/release/WhosNext.exe
+          if-no-files-found: error
+
+      - name: Publier la release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: src-tauri/target/release/WhosNext.exe

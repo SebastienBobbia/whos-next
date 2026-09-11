@@ -29,6 +29,7 @@ tauri-plugin-dialog = "2"
 windows-sys = { version = "0.60", features = [
   "Win32_Foundation",
   "Win32_Graphics_Gdi",
+  "Win32_UI_WindowsAndMessaging",
 ] }
 
 # Voir https://tauri.app/concept/size/#cargo-configuration
