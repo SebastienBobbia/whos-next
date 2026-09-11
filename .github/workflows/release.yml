@@ -35,6 +35,12 @@ jobs:
       - name: Tests Rust
         run: cargo test --manifest-path src-tauri/Cargo.toml --lib
 
+      - name: Installer le navigateur Playwright
+        run: npx playwright install chromium
+
+      - name: Tests de bout en bout
+        run: npm run test:e2e
+
       - name: Construire l'exécutable
         run: npm run tauri build
 

@@ -1,76 +1,71 @@
 # Who's Next?
 
-Petite application de bureau pour les daily meetings : savoir qui a parlé et qui n'a pas encore parlé, pour des équipes de taille moyenne (~12 personnes).
+Application de bureau pour les daily meetings : savoir qui n'a pas encore pris la parole. La fenêtre se colle au bord droit de l'écran, par-dessus Teams.
 
 ## Fonctionnalités
 
-- **Gestion d'équipe** : ajout/suppression des membres permanents (persisté en JSON)
-- **Sélection des présents** : cocher les personnes présentes au daily du jour
-- **Session live** : affichage en temps réel de qui n'a pas encore parlé / qui a parlé
-- **Tirage au sort** : tirer aléatoirement le prochain intervenant (marqué automatiquement)
-- **Marquage manuel** : cliquer sur un nom pour le marquer comme ayant parlé
-- **Always-on-top** : la fenêtre reste au premier plan par-dessus Teams (désactivable)
-- **Thème sombre** par défaut
+- **Équipe** : ajout, suppression et réordonnancement des membres permanents, avec une icône emoji ou une image par personne.
+- **Présence** : cocher les personnes présentes au daily. Les personnes décochées reviennent décochées au daily suivant.
+- **Session** : une tuile par personne restante, teintée par la couleur dominante de son avatar. Un clic marque la prise de parole.
+- **Tirage au sort** : désigne au hasard quelqu'un qui n'a pas encore parlé, jamais la personne déjà désignée.
+- **Annulation** : efface la désignation, puis rend leur tuile aux personnes déjà passées.
+- **Toujours au premier plan**, activable et désactivable.
+- **Thème sombre**, polices embarquées, aucun accès réseau.
 
-## Prérequis
+## Pour les utilisateurs
 
-- Python 3.10+
-- tkinter (inclus avec Python sur Windows)
+Un seul fichier : `WhosNext.exe`. Pas d'installation, pas de droits administrateur. Windows 10 ou 11 en x64, avec Microsoft Edge WebView2 Runtime, présent de base sur Windows 11 et sur Windows 10 à jour.
 
-## Installation
+Les données vivent dans `%APPDATA%\WhosNext\` : `team.json` et le dossier `icons\`. L'équipe embarquée dans l'exe n'y est copiée qu'au premier lancement ; ensuite, les modifications sont locales et ne sont jamais écrasées. Pour repartir de zéro, supprimer ce dossier avant de relancer.
 
-```bash
-pip install -r requirements.txt
-```
+**Mettre à jour l'équipe embarquée :** modifier `default_data/team.json` et `default_data/icons/`, puis reconstruire l'exe. Les collègues qui ont déjà lancé l'application gardent leurs données.
 
-## Lancement
+## Pour développer
 
-```bash
-python main.py
-```
-
-## Créer un exécutable Windows (.exe)
+Prérequis, côté Windows : Node 22 ou plus, Rust `stable-x86_64-pc-windows-msvc`, et les Visual Studio Build Tools avec la charge de travail C++.
 
 ```bash
-pip install pyinstaller
-pyinstaller WhosNext.spec --noconfirm
+npm install
+npm run tauri dev      # application en développement, rechargement à chaud
+npm run tauri build    # produit src-tauri/target/release/WhosNext.exe
 ```
 
-L'exécutable sera dans le dossier `dist/`.
+Vérifications :
 
-## Données d'équipe embarquées
+```bash
+npm run check                                      # typage Svelte et TypeScript
+npm test                                           # domaine Session (vitest)
+npm run test:e2e                                   # parcours des vues (Playwright)
+cargo test --manifest-path src-tauri/Cargo.toml    # persistance (Rust)
+```
 
-L'exe embarque les prénoms et images de l'équipe (dossier `default_data/`).
-Au premier lancement sur un nouveau poste, ces données sont automatiquement copiées
-dans `%APPDATA%\WhosNext\`. Les modifications ultérieures sont locales.
+Les points non automatisables — DPI, multi-écran, premier plan, distribution — sont listés dans [docs/recette-manuelle.md](docs/recette-manuelle.md).
 
-**Pour mettre à jour l'équipe dans l'exe :**
+## Documentation
 
-1. Modifier `default_data/team.json` (ajouter/supprimer un membre)
-2. Ajouter/remplacer les images dans `default_data/icons/`
-3. Rebuilder : `pyinstaller WhosNext.spec --noconfirm`
-4. Distribuer le nouveau `dist/WhosNext.exe`
+| Fichier | Contenu |
+|---|---|
+| [CONTEXT.md](CONTEXT.md) | Glossaire du domaine |
+| [docs/spec/](docs/spec/) | Spécification fonctionnelle, une exigence par identifiant |
+| [docs/adr/](docs/adr/) | Décisions structurantes et leurs alternatives écartées |
+| [docs/recette-manuelle.md](docs/recette-manuelle.md) | Vérifications manuelles avant distribution |
+| [docs/design/](docs/design/) | Maquettes et pistes visuelles |
 
-> Les collègues qui ont déjà lancé l'app conservent leurs données locales.
-> Pour forcer un reset : supprimer `%APPDATA%\WhosNext\` avant de relancer.
-
-## Structure du projet
+## Structure
 
 ```
 whos-next/
-├── main.py              # Point d'entrée
-├── team_manager.py      # Gestion des membres (CRUD + JSON)
-├── session.py           # Logique de session (présents, parlé, restants)
-├── ui/
-│   ├── __init__.py
-│   ├── main_window.py   # Fenêtre principale + navigation
-│   ├── team_view.py     # Vue gestion d'équipe
-│   ├── setup_view.py    # Vue sélection des présents
-│   └── session_view.py  # Vue live du meeting
-├── default_data/        # Données embarquées dans l'exe
-│   ├── team.json        # Liste des membres + icônes
-│   └── icons/           # Images des membres
-├── requirements.txt
-├── WhosNext.spec        # Config PyInstaller
-└── .gitignore
+├── src/                  # Interface Svelte 5 + TypeScript
+│   ├── App.svelte        # Navigation entre les trois vues
+│   ├── lib/              # Domaine Session, état de l'Équipe, icônes, glyphes
+│   └── views/            # Équipe, Présence, Session, choix d'Icône
+├── src-tauri/            # Cœur Rust
+│   └── src/
+│       ├── store.rs      # team.json, icônes, équipe embarquée
+│       └── window.rs     # Zone de travail, calage, premier plan
+├── e2e/                  # Tests Playwright
+├── default_data/         # Équipe embarquée dans l'exe
+└── docs/                 # Spec, ADR, recette, maquettes
 ```
+
+> L'application Python d'origine (`main.py`, `ui/`, `WhosNext.spec`) est conservée le temps de valider la parité, puis sera supprimée.
