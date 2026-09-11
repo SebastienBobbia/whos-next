@@ -141,6 +141,7 @@
   }
 
   label {
+    position: relative;
     height: 100%;
     display: flex;
     align-items: center;
@@ -149,10 +150,16 @@
     cursor: pointer;
   }
 
+  /* La case réelle couvre toute la ligne : c'est elle qui reçoit les clics
+     et le focus clavier, la case dessinée n'est qu'un rendu. */
   input {
     position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
     opacity: 0;
-    pointer-events: none;
+    cursor: pointer;
   }
 
   .box {

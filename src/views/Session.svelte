@@ -57,7 +57,8 @@
     designated = session.designated;
     complete = session.isComplete;
     canDraw = session.canDraw;
-    canUndo = session.canUndo;
+    // Pendant la Célébration, plus aucune action n'est possible (SE-10).
+    canUndo = !complete && session.canUndo;
     if (complete) celebrate();
   }
 
