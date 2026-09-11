@@ -68,4 +68,4 @@ whos-next/
 └── docs/                 # Spec, ADR, recette, maquettes
 ```
 
-> L'application Python d'origine (`main.py`, `ui/`, `WhosNext.spec`) est conservée le temps de valider la parité, puis sera supprimée.
+> L'application Python d'origine (customtkinter et PyInstaller) a été remplacée après validation de la parité. Son code reste consultable dans l'historique git, jusqu'au commit `0aa4b55`.

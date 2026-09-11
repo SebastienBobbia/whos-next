@@ -1,18 +1,15 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-*.egg-info/
+# Dépendances et sorties de construction
+node_modules/
 dist/
-build/
-# *.spec (tracking pour PyInstaller)
+src-tauri/target/
+src-tauri/gen/
 
+# Sorties de test
+test-results/
+playwright-report/
 
-# Virtual environments
-venv/
-.venv/
-env/
+# Canvas de maquettes assemblé (reconstruit depuis docs/design/directions)
+docs/design/whos-next-redesign.html
 
 # IDE
 .vscode/
@@ -23,15 +20,3 @@ env/
 # OS
 .DS_Store
 Thumbs.db
-
-# App data (local user data, not versioned)
-data/team.json
-
-# Assembled design canvas (rebuilt from docs/design/directions)
-docs/design/whos-next-redesign.html
-
-# Réécriture Tauri
-node_modules/
-dist/
-src-tauri/target/
-src-tauri/gen/
