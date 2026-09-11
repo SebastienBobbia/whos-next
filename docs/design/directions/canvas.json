@@ -1,0 +1,168 @@
+{
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Maquettes"
+    },
+    {
+      "id": "page-2",
+      "name": "Pistes explorées"
+    }
+  ],
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "title": "Session",
+      "page": "page-1",
+      "x": 0,
+      "y": 0,
+      "w": 260,
+      "h": 900
+    },
+    {
+      "file": "SessionCompacte.dc.html",
+      "title": "Session compacte (18 Restants)",
+      "page": "page-1",
+      "x": 340,
+      "y": 0,
+      "w": 260,
+      "h": 900
+    },
+    {
+      "file": "Celebration.dc.html",
+      "title": "Célébration",
+      "page": "page-1",
+      "x": 680,
+      "y": 0,
+      "w": 260,
+      "h": 900
+    },
+    {
+      "file": "Equipe.dc.html",
+      "title": "Équipe",
+      "page": "page-1",
+      "x": 1020,
+      "y": 0,
+      "w": 420,
+      "h": 550
+    },
+    {
+      "file": "Presence.dc.html",
+      "title": "Qui est présent ?",
+      "page": "page-1",
+      "x": 1520,
+      "y": 0,
+      "w": 420,
+      "h": 550
+    },
+    {
+      "file": "Icone.dc.html",
+      "title": "Choix d'Icône",
+      "page": "page-1",
+      "x": 2020,
+      "y": 0,
+      "w": 420,
+      "h": 430
+    },
+    {
+      "file": "SessionA.dc.html",
+      "title": "A · Session",
+      "page": "page-2",
+      "x": 0,
+      "y": 0,
+      "w": 260,
+      "h": 900
+    },
+    {
+      "file": "EquipeA.dc.html",
+      "title": "A · Équipe",
+      "page": "page-2",
+      "x": 340,
+      "y": 0,
+      "w": 420,
+      "h": 550
+    },
+    {
+      "file": "SessionB.dc.html",
+      "title": "B · Session",
+      "page": "page-2",
+      "x": 920,
+      "y": 0,
+      "w": 260,
+      "h": 900
+    },
+    {
+      "file": "EquipeB.dc.html",
+      "title": "B · Équipe",
+      "page": "page-2",
+      "x": 1260,
+      "y": 0,
+      "w": 420,
+      "h": 550
+    },
+    {
+      "file": "SessionC.dc.html",
+      "title": "C · Session",
+      "page": "page-2",
+      "x": 1840,
+      "y": 0,
+      "w": 260,
+      "h": 900
+    },
+    {
+      "file": "EquipeC.dc.html",
+      "title": "C · Équipe",
+      "page": "page-2",
+      "x": 2180,
+      "y": 0,
+      "w": 420,
+      "h": 550
+    }
+  ],
+  "annotations": [
+    {
+      "id": "note-session",
+      "page": "page-1",
+      "x": 0,
+      "y": 940,
+      "w": 300,
+      "text": "Session : bandes de B sur fond bleu nuit, noms en capitales condensées, teinte = couleur dominante de l'avatar.\nDésigné (Marion) : anneau jaune de A, qui clignote 3 fois au Tirage puis reste affiché tant que la personne est Désignée."
+    },
+    {
+      "id": "note-compact",
+      "page": "page-1",
+      "x": 340,
+      "y": 940,
+      "w": 300,
+      "text": "Affichage compact : déclenché quand les Tuiles passent sous le seuil de lisibilité (ici 18 Restants dans 900 px). Seul l'avatar reste. L'anneau du Désigné fonctionne pareil."
+    },
+    {
+      "id": "note-celebration",
+      "page": "page-1",
+      "x": 680,
+      "y": 940,
+      "w": 300,
+      "text": "Célébration : plein écran de la colonne, puis fermeture de l'application au bout d'une seconde. J'ai retiré l'emoji 🎉 de l'app actuelle ; dites si vous le voulez."
+    },
+    {
+      "id": "note-forms",
+      "page": "page-1",
+      "x": 1020,
+      "y": 620,
+      "w": 420,
+      "text": "Vues Équipe, Présence et choix d'Icône : direction A, bleu nuit et coins arrondis. La vue Présence montre le changement de comportement : Julien Bl. était décoché au dernier daily, il revient décoché."
+    },
+    {
+      "id": "note-old",
+      "page": "page-2",
+      "x": 0,
+      "y": -140,
+      "w": 560,
+      "text": "Pistes explorées le 2026-09-11. Retenu : B pour la Session avec le Désigné de A, A pour les vues Équipe et Présence."
+    }
+  ],
+  "launch": {
+    "view": "canvas",
+    "page": "page-1"
+  }
+}

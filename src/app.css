@@ -1,0 +1,53 @@
+@import "./assets/fonts.css";
+
+/* Jetons de style communs aux vues Équipe et Présence (direction A)
+   et à la vue Session (direction B). Voir docs/spec/README.md. */
+:root {
+  --font-ui: "Manrope", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+
+  /* Vues Équipe, Présence, choix d'Icône */
+  --ink: #15152b;
+  --ink-row: #222241;
+  --ink-field: #1e1e3a;
+  --ink-line: #34345a;
+  --txt: #ecebf5;
+  --txt-dim: #8d8cab;
+  --txt-faint: #6b6b8f;
+  --blue: #3057c8;
+  --red: #5a1d26;
+  --red-txt: #fecaca;
+
+  /* Vue Session */
+  --night: #0c0c16;
+  --tile-default: #2d2d44;
+  --designe-ring: #facc15;
+  --designe-txt: #fff7d1;
+  --tile-txt: #f5f5f5;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--ink);
+  color: var(--txt);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  user-select: none;
+  cursor: default;
+}
+
+#app {
+  height: 100%;
+}
