@@ -1,9 +1,12 @@
 name: Release
 
 # Construit WhosNext.exe sur un runner Windows (DI-09).
+# Les pull requests et main sont vérifiées ; seul un tag publie une release.
 on:
   push:
+    branches: [main]
     tags: ["v*"]
+  pull_request:
   workflow_dispatch:
 
 jobs:
