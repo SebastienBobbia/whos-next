@@ -42,7 +42,8 @@ Le dossier de secours Linux et macOS (`~/.whonext`) n'est pas repris : l'applica
 **PE-06** `[CHANGEMENT]` — Il n'y a pas de migration depuis le format v1 (`{"members": ["Alice", "Bob"]}`). Un fichier dont `version` ne vaut pas `2` est traité comme un fichier illisible (PE-07).
 Python : un fichier v1 était migré automatiquement. (`team_manager.py:217-226`)
 
-**PE-07** — Si `team.json` est illisible (JSON invalide, structure inattendue ou version différente de 2), l'application démarre avec une Équipe vide. Dans l'application Python, le fichier est ensuite écrasé à la première modification. Ce comportement est à revoir : voir PT-2 dans le [README](README.md). (`team_manager.py:228-229`)
+**PE-07** `[CORRECTION]` — Si `team.json` est illisible (JSON invalide, structure inattendue ou version différente de 2), l'application démarre avec une Équipe vide, et l'Équipe embarquée n'est pas copiée. Avant la première écriture, le fichier illisible est renommé `team.json.illisible-AAAAMMJJ-HHMMSS`, avec la date et l'heure du renommage. Il n'est jamais écrasé.
+Python : le fichier illisible était écrasé à la première modification, et l'Équipe était perdue. (`team_manager.py:228-229`)
 
 ## Écriture
 

@@ -27,7 +27,8 @@ Python : la bordure jaune disparaissait au premier redimensionnement, parce que 
 
 On peut répéter l'annulation jusqu'à ce qu'il ne reste plus aucun Participant qui A parlé. (`session.py:103-113`, `ui/session_view.py:394-403`)
 
-**SE-08** — Le bouton d'annulation est actif quand au moins un Participant A parlé, et désactivé sinon, même s'il y a un Désigné. Ce comportement est à revoir : voir PT-3 dans le [README](README.md). (`ui/session_view.py:420`)
+**SE-08** `[CORRECTION]` — Le bouton d'annulation est actif dès qu'il y a un Désigné ou qu'au moins un Participant A parlé. Il est désactivé dans les autres cas, et pendant la Célébration.
+Python : le bouton n'était actif qu'à partir du premier Participant qui A parlé, même s'il y avait un Désigné. On ne pouvait donc pas annuler le premier Tirage d'une Session. (`ui/session_view.py:420`)
 
 **SE-09** — Le bouton de fin (■ `[INDICATIF]`) termine la Session immédiatement, sans confirmation. La Session est perdue et l'application revient à la vue Équipe (voir FE-10). (`ui/session_view.py:192-200`, `ui/main_window.py:121-123`)
 

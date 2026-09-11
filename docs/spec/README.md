@@ -31,7 +31,7 @@ Chaque exigence porte un identifiant (`EQ-05`, `SE-04`…) et, quand c'est utile
 
 ## Périmètre
 
-La réécriture couvre : la parité avec l'application Python, 2 changements (mémoire des Absents, Tirage qui exclut le Désigné) et 3 corrections (import SVG, proportions des images de la vue Présence, doublons de noms insensibles à la casse).
+La réécriture couvre : la parité avec l'application Python, 2 changements (mémoire des Absents, Tirage qui exclut le Désigné) et les corrections de bugs listées plus bas.
 
 Hors périmètre :
 
@@ -67,22 +67,19 @@ Des maquettes sont produites et validées après cette spécification, avant l'�
 
 Chaque exigence de cette spécification doit être couverte par au moins un test automatique ou une ligne de recette manuelle.
 
-## Points à trancher
+## Corrections de bugs
 
-La lecture du code a révélé des bugs qui n'avaient pas été discutés. Chaque point porte une recommandation. Il faut trancher ces points avant de valider la spec.
+Toutes ces corrections portent l'étiquette `[CORRECTION]` dans leur fichier.
 
-**PT-1 — « Valider » sans changement efface l'image d'un Membre.**
-Scénario : ouvrir la fenêtre de choix d'Icône d'un Membre qui a une Icône image, puis cliquer sur « Valider » sans rien changer. La fenêtre renvoie le nom du fichier stocké (`aro.png`) comme s'il s'agissait d'un nouveau fichier à importer (`ui/icon_picker.py:130`, `:303`). `set_icon` supprime d'abord l'ancien fichier, puis tente de copier `aro.png` depuis le dossier courant, ce qui échoue (`team_manager.py:153-161`). L'image est perdue. Le même problème se produit si on choisit avec « Parcourir… » un fichier qui se trouve déjà dans `icons\`.
-Recommandation : corriger. « Valider » sans changement ne modifie rien. Lors d'un remplacement, copier la nouvelle image avant de supprimer l'ancienne.
+| Bug de l'application Python | Exigence |
+|---|---|
+| L'import SVG ne fonctionne pas dans l'exe | IC-14 |
+| Les images de la vue Présence sont déformées | PR-03 |
+| Le contrôle des doublons de noms tient compte de la casse | EQ-10 |
+| « Valider » sans changement efface l'image d'un Membre | IC-07 |
+| Un `team.json` illisible est écrasé à la première modification | PE-07 |
+| ↩ reste désactivé tant que personne n'a parlé, même avec un Désigné | SE-08 |
+| En Session, la fenêtre déborde probablement sous la barre des tâches | FE-08 |
+| La mise en évidence du Désigné disparaît après un redimensionnement | SE-06 |
 
-**PT-2 — Un `team.json` illisible est écrasé.**
-Si `team.json` contient du JSON invalide, l'application démarre avec une Équipe vide et écrase le fichier à la première modification (`team_manager.py:228-229`). L'Équipe est alors perdue définitivement. Avec l'abandon de la migration v1, un fichier dont la version n'est pas 2 tombe dans ce même cas.
-Recommandation : corriger. Avant toute écriture, renommer le fichier illisible en `team.json.illisible-AAAAMMJJ-HHMMSS`, puis démarrer avec une Équipe vide.
-
-**PT-3 — ↩ est désactivé tant que personne n'a parlé, même avec un Désigné.**
-Scénario : lancer une Session, faire un Tirage, puis vouloir annuler ce Tirage. ↩ reste désactivé tant qu'aucun Participant n'A parlé (`ui/session_view.py:420`). La règle « ↩ efface d'abord le Désigné » ne s'applique donc qu'à partir du deuxième intervenant.
-Recommandation : corriger. ↩ est actif dès qu'il y a un Désigné ou au moins un Participant qui A parlé.
-
-**PT-4 — En Session, la fenêtre déborde sous la barre des tâches.**
-Le calage passe à Tk la hauteur de la zone de travail comme hauteur de la zone client (`ui/session_view.py:266-272`). La barre de titre native vient s'y ajouter, et le bas de la fenêtre passe probablement sous la barre des tâches, de la hauteur de la barre de titre. Ce point est à confirmer lors de la recette de l'application actuelle.
-Recommandation : corriger. La fenêtre entière, cadre compris, tient dans la zone de travail.
+Les quatre bugs du milieu du tableau (image effacée, `team.json` écrasé, ↩ désactivé, débordement de la fenêtre) ont été trouvés en lisant le code, et leur correction a été validée à la relecture de la spec.

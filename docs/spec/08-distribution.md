@@ -23,7 +23,7 @@ Python : un dossier `dist\WhosNext\` contenant l'exe et de nombreux fichiers (`W
 
 **DI-06** — Pour passer de l'ancienne application à la nouvelle, on remplace le dossier `dist\WhosNext\` par le nouvel exe. La nouvelle application reprend les données de `%APPDATA%\WhosNext\` telles quelles, sans aucune action de l'utilisateur.
 
-**DI-07** (proposition, à valider) — Si WebView2 est absent, l'application affiche un message qui explique qu'il faut installer « Microsoft Edge WebView2 Runtime », au lieu de se fermer sans rien dire.
+**DI-07** — Si WebView2 est absent, l'application affiche un message qui explique qu'il faut installer « Microsoft Edge WebView2 Runtime », au lieu de se fermer sans rien dire.
 
 ## Construction
 

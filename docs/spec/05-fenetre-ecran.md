@@ -30,7 +30,8 @@ Sources Python : `ui/main_window.py`, `ui/session_view.py`, `ui/dpi_utils.py`.
 - sa largeur est celle du plus long nom parmi les Restants, plus la place d'une Icône et des marges. Dans l'application Python `[INDICATIF]` : texte mesuré en Segoe UI 14 gras, + 36 px pour l'Icône, + 28 px de marges ;
 - la largeur ne dépasse pas 18 % de la largeur de la zone de travail, et ne descend pas sous un minimum (90 px dans l'application Python `[INDICATIF]`).
 
-**FE-08** `[CORRECTION]` (sous réserve de PT-4) — Après un calage, la fenêtre entière (cadre et barre de titre compris, s'il y en a) tient dans la zone de travail.
+**FE-08** `[CORRECTION]` — Après un calage, la fenêtre entière (cadre et barre de titre compris, s'il y en a) tient dans la zone de travail.
+Python : la hauteur de la zone de travail était passée à Tk comme hauteur de la zone client. La barre de titre native s'ajoutait par-dessus, et le bas de la fenêtre passait probablement sous la barre des tâches. (`ui/session_view.py:266-272`)
 
 **FE-09** — La largeur ne change qu'au calage. Quand un Participant au nom long A parlé, la fenêtre ne rétrécit qu'au prochain clic sur ↔. (`ui/session_view.py:255-263`)
 

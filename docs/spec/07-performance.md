@@ -13,7 +13,7 @@ Conditions de mesure : poste Windows 10 ou 11 standard, Équipe de 20 Membres ay
 | **PF-03** | Passage de la fenêtre sur un écran de DPI différent | Aucun gel, nouvelle mise en page < 200 ms | Gel |
 | **PF-04** | Clic sur ↔ jusqu'à la fenêtre recalée et les Tuiles affichées | < 100 ms | Calage lent |
 
-**PF-05** (proposition, à valider) — Les autres actions (ajout, suppression, fin d'un réordonnancement, changement d'Icône, Tirage, ouverture d'une vue) réagissent en moins de 100 ms. Le glisser-déposer suit la souris sans à-coups.
+**PF-05** — Les autres actions (ajout, suppression, fin d'un réordonnancement, changement d'Icône, Tirage, ouverture d'une vue) réagissent en moins de 100 ms. Le glisser-déposer suit la souris sans à-coups.
 
 ## Règles de conception
 

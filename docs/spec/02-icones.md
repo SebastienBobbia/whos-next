@@ -27,8 +27,8 @@ Sources Python : `ui/icon_picker.py`, `team_manager.py`, `ui/team_view.py` (`_op
 2. sinon, un emoji est sélectionné : il devient l'Icône emoji du Membre ;
 3. sinon : aucune modification. (`ui/icon_picker.py:301-310`)
 
-**IC-07** `[CORRECTION]` (sous réserve de PT-1) — Valider sans avoir rien changé ne modifie pas l'Icône et ne supprime aucun fichier. Choisir comme nouvelle image un fichier qui se trouve déjà dans `icons\` fonctionne.
-Python : l'image existante était supprimée (voir PT-1 dans le [README](README.md)).
+**IC-07** `[CORRECTION]` — Valider sans avoir rien changé ne modifie pas l'Icône et ne supprime aucun fichier. Choisir comme nouvelle image un fichier qui se trouve déjà dans `icons\` fonctionne. Lors d'un remplacement, la nouvelle image est copiée avant que l'ancienne soit supprimée.
+Python : la fenêtre renvoyait le nom du fichier stocké (`aro.png`) comme s'il s'agissait d'un nouveau fichier à importer (`ui/icon_picker.py:130`, `:303`). `set_icon` supprimait d'abord l'ancien fichier, puis tentait de copier `aro.png` depuis le dossier courant, ce qui échouait (`team_manager.py:153-161`). L'image était perdue.
 
 **IC-08** — Le bouton `Annuler` et la fermeture de la fenêtre ne modifient rien. (`ui/icon_picker.py:230-239`)
 
