@@ -17,6 +17,10 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Équipe embarquée dans l'exe (PE-10)
+include_dir = "0.7"
+# Horodatage local du fichier team.json mis de côté (PE-07)
+chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 
 # Voir https://tauri.app/concept/size/#cargo-configuration
 [profile.release]
