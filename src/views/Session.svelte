@@ -15,6 +15,10 @@
   const MAX_WIDTH_RATIO = 0.18;
   const AVATAR_COLUMN = 64;
   const SIDE_PADDING = 24;
+  /** Doit rester aligné sur la règle .name du style ci-dessous. */
+  const TILE_FONT_MAX = 30;
+  const TILE_FONT_FAMILY = "'Barlow Condensed', 'Arial Narrow', sans-serif";
+  const TILE_LETTER_SPACING = 0.02;
 
   // Instance simple, hors proxy Svelte : la classe utilise des champs privés.
   // L'affichage suit les variables d'état ci-dessous, mises à jour par sync().
@@ -83,13 +87,26 @@
     setTimeout(() => invoke("quit_app"), 1000);
   }
 
-  /** Largeur voulue : le plus long nom affiché, plus l'avatar et les marges (FE-07). */
+  /**
+   * Largeur voulue : le plus long nom affiché, plus l'avatar et les marges (FE-07).
+   *
+   * La mesure doit refléter le rendu réel de la Tuile : capitales et
+   * letter-spacing, sinon le dernier caractère est coupé.
+   */
   function desiredWidth(): number {
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
     if (!ctx) return MIN_WIDTH;
-    ctx.font = "700 30px 'Barlow Condensed', 'Arial Narrow', sans-serif";
-    const widest = remaining.reduce((max, name) => Math.max(max, ctx.measureText(name).width), 0);
+
+    const fontSize = TILE_FONT_MAX;
+    ctx.font = `700 ${fontSize}px ${TILE_FONT_FAMILY}`;
+    const spacing = fontSize * TILE_LETTER_SPACING;
+
+    const widest = remaining.reduce((max, name) => {
+      const upper = name.toLocaleUpperCase("fr");
+      return Math.max(max, ctx.measureText(upper).width + spacing * upper.length);
+    }, 0);
+
     return Math.ceil(widest + AVATAR_COLUMN + SIDE_PADDING);
   }
 

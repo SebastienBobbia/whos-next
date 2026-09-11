@@ -71,17 +71,51 @@ export function dominantColor(image: HTMLImageElement): string {
   }
   if (opaque.length === 0) return TILE_DEFAULT;
 
-  const [r, g, b] = darken(largestBucketAverage(medianCut(opaque, 8)));
+  const [r, g, b] = darken(mostUsedColor(opaque, 8));
   return `#${hex(r)}${hex(g)}${hex(b)}`;
 }
 
 type RGB = [number, number, number];
 
+/**
+ * Couleur qui couvre le plus de pixels, après réduction à `count` couleurs.
+ *
+ * Deux étapes, comme la quantification de PIL : on construit la palette par
+ * median cut, puis on réaffecte chaque pixel à la couleur de palette la plus
+ * proche avant de compter. Sans cette réaffectation, une boîte large mais peu
+ * homogène l'emporte, et sa moyenne donne une teinte que l'image ne contient
+ * pas (un bleu et un orange donnaient un marron).
+ */
+function mostUsedColor(pixels: RGB[], count: number): RGB {
+  const palette = medianCut(pixels, count).map(average);
+  const tally = new Array(palette.length).fill(0);
+  for (const pixel of pixels) tally[nearest(palette, pixel)] += 1;
+
+  let winner = 0;
+  for (let i = 1; i < tally.length; i++) {
+    if (tally[i] > tally[winner]) winner = i;
+  }
+  return palette[winner];
+}
+
+function nearest(palette: RGB[], [r, g, b]: RGB): number {
+  let best = 0;
+  let bestDistance = Infinity;
+  palette.forEach(([pr, pg, pb], index) => {
+    const distance = (r - pr) ** 2 + (g - pg) ** 2 + (b - pb) ** 2;
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = index;
+    }
+  });
+  return best;
+}
+
 /** Découpe récursive du nuage de pixels en `count` boîtes (median cut). */
 function medianCut(pixels: RGB[], count: number): RGB[][] {
   let buckets: RGB[][] = [pixels];
   while (buckets.length < count) {
-    const index = widestBucket(buckets);
+    const index = biggestBucket(buckets);
     if (index < 0) break;
     const bucket = buckets[index];
     const channel = widestChannel(bucket);
@@ -97,14 +131,15 @@ function medianCut(pixels: RGB[], count: number): RGB[][] {
   return buckets;
 }
 
-function widestBucket(buckets: RGB[][]): number {
+/** Boîte à découper : la plus peuplée, à condition d'être encore étalée. */
+function biggestBucket(buckets: RGB[][]): number {
   let best = -1;
-  let bestSpread = 0;
+  let bestCount = 0;
   buckets.forEach((bucket, index) => {
     if (bucket.length < 2) return;
-    const spread = channelSpread(bucket, widestChannel(bucket));
-    if (spread >= bestSpread) {
-      bestSpread = spread;
+    if (channelSpread(bucket, widestChannel(bucket)) === 0) return;
+    if (bucket.length > bestCount) {
+      bestCount = bucket.length;
       best = index;
     }
   });
@@ -127,20 +162,16 @@ function channelSpread(bucket: RGB[], channel: 0 | 1 | 2): number {
   return max - min;
 }
 
-/** Moyenne de la boîte qui contient le plus de pixels. */
-function largestBucketAverage(buckets: RGB[][]): RGB {
-  let best = buckets[0];
-  for (const bucket of buckets) {
-    if (bucket.length > best.length) best = bucket;
-  }
-  const sum = best.reduce<RGB>(
+/** Couleur moyenne d'une boîte : son entrée dans la palette. */
+function average(bucket: RGB[]): RGB {
+  const sum = bucket.reduce<RGB>(
     (acc, [r, g, b]) => [acc[0] + r, acc[1] + g, acc[2] + b],
     [0, 0, 0],
   );
   return [
-    Math.round(sum[0] / best.length),
-    Math.round(sum[1] / best.length),
-    Math.round(sum[2] / best.length),
+    Math.round(sum[0] / bucket.length),
+    Math.round(sum[1] / bucket.length),
+    Math.round(sum[2] / bucket.length),
   ];
 }
 

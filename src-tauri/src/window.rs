@@ -3,6 +3,12 @@
 //! La zone de travail vient de l'API Windows, comme dans l'application Python :
 //! MonitorFromWindow + GetMonitorInfoW. Tauri ne donne que la taille totale de
 //! l'écran, barre des tâches comprise.
+//!
+//! Le calage se fait en deux temps : on pose une taille, on mesure les bords
+//! réellement visibles, puis on corrige. Sous Windows 10 et 11, le rectangle
+//! d'une fenêtre déborde de plusieurs pixels invisibles sur les côtés et en
+//! bas (poignées de redimensionnement) : sans cette correction, la fenêtre
+//! semble décollée du bord droit.
 
 use serde::Serialize;
 use tauri::{LogicalSize, PhysicalPosition, PhysicalSize, Window};
@@ -16,6 +22,15 @@ pub struct WorkArea {
     pub height: i32,
     /// 1.0 à 96 dpi, 1.5 à 144 dpi, etc.
     pub scale: f64,
+}
+
+/// Marges invisibles du cadre, en pixels physiques.
+#[derive(Clone, Copy, Default)]
+struct Invisible {
+    left: i32,
+    top: i32,
+    right: i32,
+    bottom: i32,
 }
 
 #[cfg(windows)]
@@ -39,8 +54,7 @@ fn work_area(window: &Window) -> Result<WorkArea, String> {
 
     let mut info: MONITORINFO = unsafe { std::mem::zeroed() };
     info.cbSize = std::mem::size_of::<MONITORINFO>() as u32;
-    let ok = unsafe { GetMonitorInfoW(monitor, &mut info) };
-    if ok == 0 {
+    if unsafe { GetMonitorInfoW(monitor, &mut info) } == 0 {
         return Err("GetMonitorInfoW a échoué".into());
     }
 
@@ -76,13 +90,53 @@ fn work_area(window: &Window) -> Result<WorkArea, String> {
     })
 }
 
+/// Écart entre le rectangle de la fenêtre et ses bords réellement visibles.
+#[cfg(windows)]
+fn invisible_margins(window: &Window) -> Invisible {
+    use windows_sys::Win32::Foundation::{HWND, RECT};
+    use windows_sys::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
+
+    let (Ok(hwnd), Ok(position), Ok(size)) = (
+        window.hwnd(),
+        window.outer_position(),
+        window.outer_size(),
+    ) else {
+        return Invisible::default();
+    };
+
+    let mut visible: RECT = unsafe { std::mem::zeroed() };
+    let hr = unsafe {
+        DwmGetWindowAttribute(
+            hwnd.0 as HWND,
+            DWMWA_EXTENDED_FRAME_BOUNDS as u32,
+            &mut visible as *mut RECT as *mut std::ffi::c_void,
+            std::mem::size_of::<RECT>() as u32,
+        )
+    };
+    if hr != 0 {
+        return Invisible::default();
+    }
+
+    Invisible {
+        left: visible.left - position.x,
+        top: visible.top - position.y,
+        right: (position.x + size.width as i32) - visible.right,
+        bottom: (position.y + size.height as i32) - visible.bottom,
+    }
+}
+
+#[cfg(not(windows))]
+fn invisible_margins(_window: &Window) -> Invisible {
+    Invisible::default()
+}
+
 /// Zone de travail et facteur d'échelle de l'écran qui porte la fenêtre.
 #[tauri::command]
 pub fn monitor_work_area(window: Window) -> Result<WorkArea, String> {
     work_area(&window)
 }
 
-/// Largeur et hauteur retenues après calage, en pixels logiques.
+/// Largeur et hauteur visibles après calage, en pixels logiques.
 #[derive(Serialize)]
 pub struct FitResult {
     pub width: f64,
@@ -92,9 +146,9 @@ pub struct FitResult {
 /// Colle la fenêtre au bord droit de la zone de travail, sur toute sa hauteur (FE-07).
 ///
 /// `desired_width` est une largeur logique calculée par l'interface à partir du
-/// plus long nom. Elle est bornée par `min_width` et par 18 % de la largeur de
-/// l'écran. Le cadre de la fenêtre est déduit de la hauteur pour que la fenêtre
-/// entière tienne dans la zone de travail (FE-08).
+/// plus long nom affiché. Elle est bornée par `min_width` et par une fraction de
+/// la largeur de l'écran. Ce sont les bords **visibles** qui touchent la zone de
+/// travail, cadre compris (FE-08).
 #[tauri::command]
 pub fn fit_to_right_edge(
     window: Window,
@@ -106,32 +160,44 @@ pub fn fit_to_right_edge(
     let scale = area.scale;
 
     let work_w = f64::from(area.width) / scale;
-    let work_h = f64::from(area.height) / scale;
-
     let max_w = work_w * max_width_ratio;
     let width = desired_width.clamp(min_width.min(max_w), max_w);
 
-    // Décor de la fenêtre : différence entre taille extérieure et intérieure.
+    // Première pose : largeur voulue, hauteur approchée.
     let outer = window.outer_size().map_err(|e| e.to_string())?;
     let inner = window.inner_size().map_err(|e| e.to_string())?;
-    let chrome_w = f64::from(outer.width.saturating_sub(inner.width)) / scale;
     let chrome_h = f64::from(outer.height.saturating_sub(inner.height)) / scale;
-
-    let height = (work_h - chrome_h).max(100.0);
-
     window
-        .set_size(LogicalSize::new(width, height))
+        .set_size(LogicalSize::new(width, (f64::from(area.height) / scale) - chrome_h))
         .map_err(|e| e.to_string())?;
 
-    let outer_w_physical = ((width + chrome_w) * scale).round() as i32;
+    // Mesure des bords visibles, puis correction de la hauteur et de la position.
+    let margins = invisible_margins(&window);
+    let outer = window.outer_size().map_err(|e| e.to_string())?;
+    let inner = window.inner_size().map_err(|e| e.to_string())?;
+
+    let visible_h = outer.height as i32 - margins.top - margins.bottom;
+    let correction = area.height - visible_h;
+    let inner_h = (inner.height as i32 + correction).max(100) as u32;
+    if correction != 0 {
+        window
+            .set_size(PhysicalSize::new(inner.width, inner_h))
+            .map_err(|e| e.to_string())?;
+    }
+
+    let outer = window.outer_size().map_err(|e| e.to_string())?;
     window
         .set_position(PhysicalPosition::new(
-            area.x + area.width - outer_w_physical,
-            area.y,
+            area.x + area.width - outer.width as i32 + margins.right,
+            area.y - margins.top,
         ))
         .map_err(|e| e.to_string())?;
 
-    Ok(FitResult { width, height })
+    let visible_w = outer.width as i32 - margins.left - margins.right;
+    Ok(FitResult {
+        width: f64::from(visible_w) / scale,
+        height: f64::from(area.height) / scale,
+    })
 }
 
 /// Restaure la taille des vues Équipe et Présence sans toucher à la position (FE-03).
@@ -152,7 +218,3 @@ pub fn set_always_on_top(window: Window, on_top: bool) -> Result<(), String> {
 pub fn quit_app(app: tauri::AppHandle) {
     app.exit(0);
 }
-
-/// Évite un avertissement quand PhysicalSize n'est pas utilisé sur une plateforme.
-#[allow(dead_code)]
-fn _unused(_: PhysicalSize<u32>) {}

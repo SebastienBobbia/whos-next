@@ -14,8 +14,4 @@ export default defineConfig({
     target: "esnext",
     sourcemap: false,
   },
-  // vitest ne prend que les tests unitaires : e2e/ appartient à Playwright.
-  test: {
-    include: ["src/**/*.test.ts"],
-  },
 });
